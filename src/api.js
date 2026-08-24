@@ -45,7 +45,8 @@ export function createReview(body) {
 }
 
 function adminHeaders(token) {
-  return bearerHeaders(token);
+  if (!token) return {};
+  return { Authorization: `Bearer ${token}` };
 }
 
 export function getAdminSubmissions(token = "") {
@@ -59,5 +60,46 @@ export function updateSubmissionStatus(placeId, status, token = "") {
     method: "PATCH",
     headers: adminHeaders(token),
     body: JSON.stringify({ status }),
+  });
+}
+
+export function getWifiCredentials(placeId, params = {}) {
+  return request(`/places/${placeId}/wifi${buildQuery(params)}`);
+}
+
+export function submitWifiCredential(placeId, body) {
+  return request(`/places/${placeId}/wifi`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export function rateWifiCredential(credentialId, body) {
+  return request(`/wifi/${credentialId}/ratings`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export function getAdminWifi(token = "") {
+  return request("/admin/wifi", { headers: adminHeaders(token) });
+}
+
+export function updateWifiStatus(credentialId, status, token = "") {
+  return request(`/admin/wifi/${credentialId}`, {
+    method: "PATCH",
+    headers: adminHeaders(token),
+    body: JSON.stringify({ status }),
+  });
+}
+
+export function getSpeedHistory(placeId, params = {}) {
+  return request(`/places/${placeId}/speedtest${buildQuery(params)}`);
+}
+
+export function saveSpeedResult(placeId, body) {
+  return request(`/places/${placeId}/speedtest`, {
+    method: "POST",
+    body: JSON.stringify(body),
   });
 }

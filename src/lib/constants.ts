@@ -55,6 +55,8 @@ export const legalRules = [
   "Setiap password wajib punya sumber yang jelas sebelum disetujui admin.",
 ] as const;
 
+export const bandOptions = ["2.4GHz", "5GHz", "6GHz", "auto"] as const;
+
 export const defaultSubmissionForm: SubmissionFormData = {
   name: "",
   category: categoryOptions[0],
@@ -64,6 +66,8 @@ export const defaultSubmissionForm: SubmissionFormData = {
   longitude: "",
   wifiAvailable: true,
   wifiAccessType: accessTypeOptions[0],
+  wifiSsid: "",
+  wifiBand: "auto",
   wifiPassword: "",
   passwordSource: "",
   accessNotes: "",
@@ -80,6 +84,7 @@ export const defaultSubmissionForm: SubmissionFormData = {
   imageUrl: "",
   submitterName: "",
   submitterEmail: "",
+  isHype: false,
 };
 
 export const categoryLabels: Record<string, string> = {
