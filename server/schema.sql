@@ -120,3 +120,43 @@ SET
 ALTER TABLE reviews ADD COLUMN IF NOT EXISTS review_title TEXT NOT NULL DEFAULT 'Ulasan pengunjung';
 ALTER TABLE reviews ADD COLUMN IF NOT EXISTS image_url TEXT;
 ALTER TABLE reviews ADD COLUMN IF NOT EXISTS author_email TEXT;
+
+ALTER TABLE places ADD COLUMN IF NOT EXISTS wifi_ssid TEXT;
+ALTER TABLE places ADD COLUMN IF NOT EXISTS wifi_band TEXT;
+ALTER TABLE places ADD COLUMN IF NOT EXISTS is_hype BOOLEAN NOT NULL DEFAULT FALSE;
+
+CREATE TABLE IF NOT EXISTS wifi_credentials (
+  id SERIAL PRIMARY KEY,
+  place_id INTEGER NOT NULL REFERENCES places(id) ON DELETE CASCADE,
+  ssid TEXT NOT NULL,
+  password TEXT,
+  band TEXT NOT NULL DEFAULT 'auto' CHECK (band IN ('2.4GHz', '5GHz', '6GHz', 'auto')),
+  password_source TEXT,
+  submitted_by_name TEXT NOT NULL,
+  submitted_by_email TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+  avg_rating NUMERIC(3, 2) NOT NULL DEFAULT 0,
+  rating_count INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  CONSTRAINT wifi_credentials_password_source_check CHECK (
+    password IS NULL OR CHAR_LENGTH(TRIM(COALESCE(password_source, ''))) > 0
+  )
+);
+
+CREATE INDEX IF NOT EXISTS idx_wifi_credentials_place ON wifi_credentials(place_id, status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_wifi_credentials_status ON wifi_credentials(status);
+
+CREATE TABLE IF NOT EXISTS wifi_credential_ratings (
+  id SERIAL PRIMARY KEY,
+  credential_id INTEGER NOT NULL REFERENCES wifi_credentials(id) ON DELETE CASCADE,
+  rater_name TEXT NOT NULL,
+  rater_email TEXT NOT NULL,
+  rating INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),
+  comment TEXT,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  UNIQUE(credential_id, rater_email)
+);
+
+CREATE INDEX IF NOT EXISTS idx_wifi_ratings_credential ON wifi_credential_ratings(credential_id);
+
