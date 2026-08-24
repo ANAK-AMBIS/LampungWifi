@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getAdminSubmissions, updateSubmissionStatus } from "../api";
+import { getAdminSubmissions, updateSubmissionStatus, getAdminWifi, updateWifiStatus } from "../api";
 import { localizeLabel } from "../lib/constants";
 import { formatDate, formatMbps } from "../lib/format";
 import {
@@ -23,7 +23,9 @@ export function AdminPage() {
     stats: null,
     submissions: [],
   });
+  const [wifiQueue, setWifiQueue] = useState([]);
   const [busyId, setBusyId] = useState(null);
+  const [busyWifiId, setBusyWifiId] = useState(null);
 
   useEffect(() => {
     let active = true;
@@ -31,7 +33,10 @@ export function AdminPage() {
     async function loadQueue() {
       try {
         setState((current) => ({ ...current, loading: true, error: "" }));
-        const response = await getAdminSubmissions();
+        const [response, wifiRes] = await Promise.all([
+          getAdminSubmissions(),
+          getAdminWifi().catch(() => ({ data: [] })),
+        ]);
 
         if (!active) {
           return;
@@ -44,6 +49,7 @@ export function AdminPage() {
           stats: response.data.stats,
           submissions: response.data.submissions,
         });
+        setWifiQueue(Array.isArray(wifiRes.data) ? wifiRes.data : wifiRes.data || []);
       } catch (error) {
         if (!active) {
           return;
@@ -98,7 +104,6 @@ export function AdminPage() {
 
   async function moderate(placeId, status) {
     setBusyId(placeId);
-
     try {
       await updateSubmissionStatus(placeId, status);
       const refreshed = await getAdminSubmissions();
@@ -113,6 +118,19 @@ export function AdminPage() {
       setState((current) => ({ ...current, error: error.message }));
     } finally {
       setBusyId(null);
+    }
+  }
+
+  async function moderateWifi(credId, status) {
+    setBusyWifiId(credId);
+    try {
+      await updateWifiStatus(credId, status);
+      const wifiRes = await getAdminWifi();
+      setWifiQueue(Array.isArray(wifiRes.data) ? wifiRes.data : []);
+    } catch (error) {
+      setState((current) => ({ ...current, error: error.message }));
+    } finally {
+      setBusyWifiId(null);
     }
   }
 
@@ -171,6 +189,23 @@ export function AdminPage() {
               />
             </div>
 
+            <div className="admin-queue" style={{ marginBottom: 24 }}>
+              <SectionHeader title="Antrean WiFi (SSID/Password)" description="Setiap SSID baru butuh approve. Tampil 2 default di halaman detail." />
+              {wifiQueue.length ? wifiQueue.map((c) => (
+                <article key={c.id} className="submission-card">
+                  <div className="submission-card__copy">
+                    <div className="submission-card__head"><div><h3>{c.ssid} <StatusPill tone="info">{c.band}</StatusPill></h3><p>Place #{c.place_id} — {c.password || "Open"}</p></div><StatusPill tone="warning">{localizeStatus(c.status)}</StatusPill></div>
+                    <div className="submission-card__meta"><StatusPill tone="muted">{c.submitted_by_name}</StatusPill><StatusPill tone="muted">{c.submitted_by_email}</StatusPill><StatusPill tone="muted">{localizeLabel(c.password_source) || "tanpa sumber"}</StatusPill></div>
+                    <small>Dibuat {formatDate(c.created_at)}</small>
+                  </div>
+                  <div className="submission-card__actions">
+                    <button type="button" className="button button--primary" disabled={busyWifiId === c.id} onClick={() => moderateWifi(c.id, "approved")}>Setujui WiFi</button>
+                    <button type="button" className="button button--ghost" disabled={busyWifiId === c.id} onClick={() => moderateWifi(c.id, "rejected")}>Tolak</button>
+                  </div>
+                </article>
+              )) : <p style={{ color: "#6b7280" }}>Tidak ada pengajuan WiFi pending.</p>}
+            </div>
+
             <div className="admin-queue">
               {state.submissions.map((submission) => (
                 <article key={submission.id} className="submission-card">
@@ -201,6 +236,7 @@ export function AdminPage() {
                           ? `${formatMbps(submission.wifi_speed_mbps)} Mbps`
                           : "Kecepatan menunggu"}
                       </StatusPill>
+                      {submission.is_hype ? <StatusPill tone="warning">HYPE</StatusPill> : null}
                     </div>
                     <p>
                       {submission.access_notes || "Belum ada catatan akses."}
@@ -210,6 +246,7 @@ export function AdminPage() {
                       password:{" "}
                       {localizeLabel(submission.password_source) ||
                         "belum diisi"}
+                      {submission.wifi_ssid ? ` — SSID: ${submission.wifi_ssid} (${submission.wifi_band})` : ""}
                     </small>
                   </div>
                   <div className="submission-card__actions">

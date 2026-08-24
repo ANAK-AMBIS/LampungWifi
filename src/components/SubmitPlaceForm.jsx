@@ -4,6 +4,7 @@ import { useState } from "react";
 import { createPlace } from "../api";
 import {
   accessTypeOptions,
+  bandOptions,
   categoryOptions,
   defaultSubmissionForm,
   imageToneOptions,
@@ -212,7 +213,25 @@ export function SubmitPlaceForm() {
           </label>
         </div>
 
-        <div className="submit-form__grid">
+        <div className="submit-form__grid submit-form__grid--triple">
+          <label className="field">
+            <span>SSID</span>
+            <input
+              name="wifiSsid"
+              value={form.wifiSsid}
+              onChange={updateField}
+              placeholder="Contoh: CafeWiFi-5G"
+              maxLength={32}
+            />
+          </label>
+          <label className="field">
+            <span>Band</span>
+            <select name="wifiBand" value={form.wifiBand} onChange={updateField}>
+              {bandOptions.map((b) => (
+                <option key={b} value={b}>{b}</option>
+              ))}
+            </select>
+          </label>
           <label className="field">
             <span>Password WiFi publik</span>
             <input
@@ -222,6 +241,8 @@ export function SubmitPlaceForm() {
               placeholder="Hanya jika terpampang publik atau disetujui pemilik"
             />
           </label>
+        </div>
+        <div className="submit-form__grid">
           <label className="field">
             <span>Sumber password</span>
             <select
@@ -236,6 +257,10 @@ export function SubmitPlaceForm() {
                 </option>
               ))}
             </select>
+          </label>
+          <label className="toggle-card" style={{ alignSelf: "end" }}>
+            <input type="checkbox" name="isHype" checked={form.isHype} onChange={updateField} />
+            <div><strong>Tempat hype</strong><span>Password hanya tampil jika login.</span></div>
           </label>
         </div>
 

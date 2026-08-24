@@ -4,23 +4,31 @@ const API_SERVER_URL = process.env.API_SERVER_URL ?? "http://localhost:8787";
 const publicDataRevalidateSeconds = 60;
 
 async function request(path, params, tags = []) {
-  const response = await fetch(
-    new URL(`/api${path}${buildQuery(params)}`, API_SERVER_URL),
-    {
-      next: {
-        revalidate: publicDataRevalidateSeconds,
-        tags,
+  try {
+    const response = await fetch(
+      new URL(`/api${path}${buildQuery(params)}`, API_SERVER_URL),
+      {
+        next: {
+          revalidate: publicDataRevalidateSeconds,
+          tags,
+        },
       },
-    },
-  );
-  const payload = await response.json().catch(() => ({}));
+    );
+    const payload = await response.json().catch(() => ({}));
 
-  if (!response.ok) {
-    const details = payload.details?.map((item) => item.message).join(", ");
-    throw new Error(details || payload.error || "Permintaan gagal");
+    if (!response.ok) {
+      const details = payload.details?.map((item) => item.message).join(", ");
+      throw new Error(details || payload.error || `Gagal fetch ${path}: ${response.status}`);
+    }
+
+    return payload;
+  } catch (e) {
+    // surface fetch/network errors with URL hint
+    if (e.message?.includes("fetch failed") || e.message?.includes("ECONNREFUSED")) {
+      throw new Error(`API tidak terjangkau (${API_SERVER_URL}${path}) - pastikan server nyala (npm run dev). Detail: ${e.message}`);
+    }
+    throw e;
   }
-
-  return payload;
 }
 
 export function getPlacesServer(filters) {

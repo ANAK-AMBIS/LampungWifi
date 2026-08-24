@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { getPlaces } from "../api";
 import {
   BookOpen,
   Coffee,
@@ -26,6 +27,24 @@ import {
 export function HomePage({ initialFeatured }) {
   const router = useRouter();
   const [search, setSearch] = useState("");
+  const [featured, setFeatured] = useState(initialFeatured);
+
+  useEffect(() => {
+    if (featured?.error || (!featured?.loading && featured?.items?.length === 0)) {
+      let active = true;
+      (async () => {
+        try {
+          const res = await getPlaces({ limit: 6 });
+          if (!active) return;
+          setFeatured({ loading: false, error: "", source: res.meta.source, items: res.data, total: res.meta.total ?? res.data.length });
+        } catch (e) {
+          if (!active) return;
+          setFeatured((c) => ({ ...c, error: e.message }));
+        }
+      })();
+      return () => { active = false; };
+    }
+  }, []);
 
   function handleHeroSubmit(event) {
     event.preventDefault();
@@ -117,17 +136,19 @@ export function HomePage({ initialFeatured }) {
             </Link>
           }
         />
-        {initialFeatured?.error ? (
-          <InfoBanner tone="danger">{initialFeatured.error}</InfoBanner>
+        {featured?.error ? (
+          <InfoBanner tone="danger">{featured.error}</InfoBanner>
         ) : null}
-        {initialFeatured?.loading ? (
+        {featured?.loading ? (
           <LoadingGrid />
-        ) : (
+        ) : featured?.items?.length ? (
           <div className="place-grid">
-            {initialFeatured?.items?.map((place) => (
+            {featured?.items?.map((place) => (
               <PlaceCard key={place.id} place={place} />
             ))}
           </div>
+        ) : (
+          <InfoBanner tone="muted">Belum ada rekomendasi — coba muat ulang atau cek koneksi API.</InfoBanner>
         )}
       </section>
 

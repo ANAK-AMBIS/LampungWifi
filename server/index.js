@@ -125,6 +125,8 @@ const categoryOptions = [
   "Rest Area",
 ];
 
+const bandOptions = ["2.4GHz", "5GHz", "6GHz", "auto"] ;
+
 const placeSubmissionSchema = z
   .object({
     name: z.string().min(3).max(120),
@@ -136,6 +138,9 @@ const placeSubmissionSchema = z
     wifiAvailable: z.boolean().default(true),
     wifiAccessType: z.string().max(80).optional().nullable(),
     wifiPassword: z.string().max(80).optional().nullable(),
+    wifiSsid: z.string().max(32).optional().nullable(),
+    wifiBand: z.enum(bandOptions).optional().nullable(),
+    isHype: z.boolean().optional(),
     passwordSource: z.string().max(80).optional().nullable(),
     accessNotes: z.string().max(220).optional().nullable(),
     wifiSpeedMbps: z.number().min(0).max(1000).nullable().optional(),
@@ -188,6 +193,41 @@ const moderationSchema = z.object({
   status: z.enum(["approved", "rejected"]),
 });
 
+const wifiCredentialSchema = z
+  .object({
+    placeId: z.number().int().positive(),
+    ssid: z.string().min(1).max(32),
+    password: z.string().max(80).optional().nullable(),
+    band: z.enum(bandOptions).optional().nullable(),
+    passwordSource: z.string().max(80).optional().nullable(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.password && !value.passwordSource) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "password_source wajib saat password diisi",
+        path: ["passwordSource"],
+      });
+    }
+  });
+
+const wifiRatingSchema = z.object({
+  credentialId: z.number().int().positive(),
+  rating: z.number().int().min(1).max(5),
+  comment: z.string().min(12).max(400).optional().nullable(),
+});
+
+const speedTestSchema = z.object({
+  downloadMbps: z.number().min(0).max(1000),
+  uploadMbps: z.number().min(0).max(1000).nullable().optional(),
+  pingMs: z.number().int().min(0).max(1000).nullable().optional(),
+  jitterMs: z.number().min(0).max(1000).nullable().optional(),
+  loadedLatencyMs: z.number().int().min(0).max(1000).nullable().optional(),
+  packetLoss: z.number().min(0).max(1).nullable().optional(),
+  durationMs: z.number().int().min(100).max(120000).nullable().optional(),
+  rawSummary: z.any().nullable().optional(),
+});
+
 function parseBoolean(value, defaultValue = false) {
   if (value === undefined) {
     return defaultValue;
@@ -213,6 +253,8 @@ function parseJson(schema, body) {
   return schema.parse({
     ...body,
     wifiPassword: cleanNullableString(body.wifiPassword),
+    wifiSsid: cleanNullableString(body.wifiSsid),
+    wifiBand: cleanNullableString(body.wifiBand),
     passwordSource: cleanNullableString(body.passwordSource),
     wifiAccessType: cleanNullableString(body.wifiAccessType),
     accessNotes: cleanNullableString(body.accessNotes),
@@ -222,6 +264,10 @@ function parseJson(schema, body) {
     imageTone: cleanNullableString(body.imageTone),
     imageUrl: cleanNullableString(body.imageUrl),
     submitterEmail: cleanNullableString(body.submitterEmail),
+    ssid: cleanNullableString(body.ssid),
+    password: cleanNullableString(body.password),
+    band: cleanNullableString(body.band),
+    comment: cleanNullableString(body.comment),
   });
 }
 
@@ -525,7 +571,8 @@ app.get("/api/places", async (request, response, next) => {
 
 app.get("/api/places/:id", async (request, response, next) => {
   try {
-    const place = await store.getPlaceById(Number(request.params.id));
+    const isAuth = Boolean(readSession(request));
+    const place = await store.getPlaceById(Number(request.params.id), { isAuthenticated: isAuth });
 
     if (!place) {
       response.status(404).json({ error: "Place not found" });
@@ -539,6 +586,135 @@ app.get("/api/places/:id", async (request, response, next) => {
       },
     });
   } catch (error) {
+    next(error);
+  }
+});
+
+// ── Wifi credentials per place ─────────────────────
+app.get("/api/places/:id/wifi", async (request, response, next) => {
+  try {
+    const placeId = Number(request.params.id);
+    const place = await store.getPlaceById(placeId, { isAuthenticated: Boolean(readSession(request)) });
+    if (!place) {
+      response.status(404).json({ error: "Place not found" });
+      return;
+    }
+    const isAuth = Boolean(readSession(request));
+    const result = await store.listWifiCredentials(placeId, {
+      isAuthenticated: isAuth,
+      limit: parseLimit(request.query.limit, 50),
+      offset: parseOffset(request.query.offset, 0),
+    });
+    response.json({ data: result.data, meta: { source: store.mode, total: result.total } });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/places/:id/wifi", mutationLimiter, requireGoogleUser, async (request, response, next) => {
+  try {
+    const placeId = Number(request.params.id);
+    const parsed = parseJson(wifiCredentialSchema, { ...request.body, placeId });
+    const cred = await store.createWifiCredential({
+      placeId,
+      ssid: parsed.ssid,
+      password: parsed.password,
+      band: parsed.band,
+      passwordSource: parsed.passwordSource,
+      submittedByName: request.googleUser.name,
+      submittedByEmail: request.googleUser.email,
+    });
+    response.status(201).json({ data: cred, message: "WiFi submitted for moderation" });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/wifi/:credId/ratings", mutationLimiter, requireGoogleUser, async (request, response, next) => {
+  try {
+    const parsed = parseJson(wifiRatingSchema, { ...request.body, credentialId: Number(request.params.credId) });
+    const rating = await store.rateWifiCredential(parsed.credentialId, {
+      raterName: request.googleUser.name,
+      raterEmail: request.googleUser.email,
+      rating: parsed.rating,
+      comment: parsed.comment,
+    });
+    response.status(201).json({ data: rating, message: "Rating published" });
+  } catch (error) {
+    // friendly duplicate message
+    if (error.message?.includes("sudah memberi rating")) {
+      response.status(409).json({ error: error.message });
+      return;
+    }
+    next(error);
+  }
+});
+
+// ── Speedtest (Cloudflare) ───────────────────────
+app.get("/api/places/:id/speedtest", async (request, response, next) => {
+  try {
+    const placeId = Number(request.params.id);
+    if (!Number.isFinite(placeId) || placeId <= 0) {
+      response.status(400).json({ error: "Invalid place id" });
+      return;
+    }
+    // verify place exists
+    const place = await store.getPlaceById(placeId, { isAuthenticated: Boolean(readSession(request)) });
+    if (!place) {
+      response.status(404).json({ error: "Place not found" });
+      return;
+    }
+    const result = await store.listSpeedTests(placeId, {
+      limit: parseLimit(request.query.limit, 20),
+      offset: parseOffset(request.query.offset, 0),
+    });
+    response.json({ data: result.data, meta: { source: store.mode, total: result.total, stats: result.stats } });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/places/:id/speedtest", mutationLimiter, requireGoogleUser, async (request, response, next) => {
+  try {
+    const placeId = Number(request.params.id);
+    if (!Number.isFinite(placeId) || placeId <= 0) {
+      response.status(400).json({ error: "Invalid place id" });
+      return;
+    }
+    const parsed = speedTestSchema.parse({
+      downloadMbps: request.body.downloadMbps ?? request.body.download_mbps,
+      uploadMbps: request.body.uploadMbps ?? request.body.upload_mbps,
+      pingMs: request.body.pingMs ?? request.body.ping_ms,
+      jitterMs: request.body.jitterMs ?? request.body.jitter_ms,
+      loadedLatencyMs: request.body.loadedLatencyMs ?? request.body.loaded_latency_ms,
+      packetLoss: request.body.packetLoss ?? request.body.packet_loss,
+      durationMs: request.body.durationMs ?? request.body.duration_ms,
+      rawSummary: request.body.rawSummary ?? request.body.raw_summary ?? null,
+    });
+    const ipRaw = request.ip ?? request.headers["x-forwarded-for"] ?? "";
+    const ipHash = ipRaw ? crypto.createHash("sha256").update(String(ipRaw)).digest("hex").slice(0, 16) : null;
+    const record = await store.createSpeedTest(
+      {
+        placeId,
+        downloadMbps: parsed.downloadMbps,
+        uploadMbps: parsed.uploadMbps,
+        pingMs: parsed.pingMs,
+        jitterMs: parsed.jitterMs,
+        loadedLatencyMs: parsed.loadedLatencyMs,
+        packetLoss: parsed.packetLoss,
+        durationMs: parsed.durationMs,
+        rawSummary: parsed.rawSummary,
+        testedByName: request.googleUser.name,
+        testedByEmail: request.googleUser.email,
+      },
+      { testerName: request.googleUser.name, testerEmail: request.googleUser.email, ipHash },
+    );
+    response.status(201).json({ data: record, message: "Speedtest tercatat" });
+  } catch (error) {
+    if (error.message?.includes("Batas 3 tes")) {
+      response.status(429).json({ error: error.message });
+      return;
+    }
     next(error);
   }
 });
@@ -606,6 +782,29 @@ app.get(
     }
   },
 );
+
+app.get("/api/admin/wifi", requireAdmin, async (_request, response, next) => {
+  try {
+    const data = await store.listAdminWifiCredentials();
+    response.json({ data, meta: { source: store.mode } });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.patch("/api/admin/wifi/:id", csrfCheck, requireAdmin, async (request, response, next) => {
+  try {
+    const parsed = moderationSchema.parse(request.body);
+    const updated = await store.updateWifiCredentialStatus(Number(request.params.id), parsed.status);
+    if (!updated) {
+      response.status(404).json({ error: "Credential not found" });
+      return;
+    }
+    response.json({ data: updated, message: `WiFi ${parsed.status}` });
+  } catch (error) {
+    next(error);
+  }
+});
 
 app.patch(
   "/api/admin/submissions/:id",

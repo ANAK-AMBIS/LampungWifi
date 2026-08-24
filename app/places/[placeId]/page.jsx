@@ -30,6 +30,7 @@ export async function generateMetadata({ params }) {
 export default async function Page({ params }) {
   const { placeId } = await params;
   const initialState = await placeState(placeId);
+  // if SSR failed but place may still be fetchable client-side, still render page
   return (
     <PlaceDetailPage
       key={placeId}

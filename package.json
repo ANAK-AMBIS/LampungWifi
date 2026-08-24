@@ -19,6 +19,7 @@
     "start:next": "next start"
   },
   "dependencies": {
+    "@cloudflare/speedtest": "^1.13.1",
     "concurrently": "^9.2.1",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",

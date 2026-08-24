@@ -44,6 +44,7 @@ function revalidateApiTags(path, body) {
 
   if (resource === "places") {
     tags.add("places");
+    if (id) tags.add(`place:${id}`);
   }
 
   if (resource === "reviews") {
@@ -54,11 +55,29 @@ function revalidateApiTags(path, body) {
     }
   }
 
+  if (resource === "wifi") {
+    tags.add("places");
+    const credId = id ? Number(id) : null;
+    if (credId) tags.add(`place:wifi:${credId}`);
+  }
+
+  if (resource === "places" && scope && id === "speedtest") {
+    tags.add("places");
+    const pid = Number(scope);
+    if (Number.isFinite(pid)) tags.add(`place:${pid}`);
+    const bodyPlace = readJsonNumber(body, "placeId");
+    if (bodyPlace) tags.add(`place:${bodyPlace}`);
+  }
+
   if (resource === "admin" && scope === "submissions") {
     tags.add("places");
     if (id) {
       tags.add(`place:${id}`);
     }
+  }
+  if (resource === "admin" && scope === "wifi") {
+    tags.add("places");
+    if (id) tags.add(`place:${id}`);
   }
 
   for (const tag of tags) {
