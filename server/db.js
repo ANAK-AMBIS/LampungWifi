@@ -176,6 +176,9 @@ function normalizePlacePayload(payload) {
     image_url: sanitizeText(payload.imageUrl),
     submitter_name: sanitizeText(payload.submitterName),
     submitter_email: sanitizeText(payload.submitterEmail),
+    wifi_ssid: sanitizeText(payload.wifiSsid),
+    wifi_band: sanitizeText(payload.wifiBand) ?? "auto",
+    is_hype: Boolean(payload.isHype),
   };
 }
 
@@ -192,10 +195,133 @@ function normalizeReviewPayload(payload) {
   };
 }
 
+function normalizeWifiPayload(payload) {
+  return {
+    place_id: Number(payload.placeId),
+    ssid: sanitizeText(payload.ssid),
+    password: sanitizeText(payload.password),
+    band: sanitizeText(payload.band) ?? "auto",
+    password_source: sanitizeText(payload.passwordSource),
+    submitted_by_name: sanitizeText(payload.submittedByName),
+    submitted_by_email: sanitizeText(payload.submittedByEmail),
+  };
+}
+
+function applyHypeMask(place, isAuthenticated) {
+  if (!place) return place;
+  if (place.is_hype && !isAuthenticated) {
+    return { ...place, wifi_password: null, wifi_ssid: place.wifi_ssid ? "•••• Login untuk lihat" : null };
+  }
+  return place;
+}
+
+function maskWifiCredentials(list, isHype, isAuthenticated) {
+  if (!isHype || isAuthenticated) return list;
+  return list.map((c) => ({ ...c, password: null, ssid: c.ssid ? "••••" : c.ssid }));
+}
+
+function normalizeSpeedPayload(payload) {
+  return {
+    place_id: Number(payload.placeId),
+    download_mbps: payload.downloadMbps != null ? Number(payload.downloadMbps) : null,
+    upload_mbps: payload.uploadMbps != null ? Number(payload.uploadMbps) : null,
+    ping_ms: payload.pingMs != null ? Number(payload.pingMs) : null,
+    jitter_ms: payload.jitterMs != null ? Number(payload.jitterMs) : null,
+    loaded_latency_ms: payload.loadedLatencyMs != null ? Number(payload.loadedLatencyMs) : null,
+    packet_loss: payload.packetLoss != null ? Number(payload.packetLoss) : null,
+    duration_ms: payload.durationMs != null ? Number(payload.durationMs) : null,
+    raw_summary: payload.rawSummary ?? null,
+    tested_by_name: sanitizeText(payload.testedByName),
+    tested_by_email: sanitizeText(payload.testedByEmail),
+    ip_hash: payload.ipHash ?? null,
+  };
+}
+
+function mapSpeedRow(row) {
+  return {
+    ...row,
+    download_mbps: row.download_mbps == null ? null : Number(row.download_mbps),
+    upload_mbps: row.upload_mbps == null ? null : Number(row.upload_mbps),
+    ping_ms: row.ping_ms == null ? null : Number(row.ping_ms),
+    jitter_ms: row.jitter_ms == null ? null : Number(row.jitter_ms),
+    loaded_latency_ms: row.loaded_latency_ms == null ? null : Number(row.loaded_latency_ms),
+    packet_loss: row.packet_loss == null ? null : Number(row.packet_loss),
+    duration_ms: row.duration_ms == null ? null : Number(row.duration_ms),
+  };
+}
+
+function computeSpeedStats(list) {
+  if (!list.length) return { count: 0, avg_download: null, avg_upload: null, avg_ping: null, avg_jitter: null };
+  const dl = list.map((r) => r.download_mbps).filter((v) => v != null);
+  const ul = list.map((r) => r.upload_mbps).filter((v) => v != null);
+  const ping = list.map((r) => r.ping_ms).filter((v) => v != null);
+  const jitter = list.map((r) => r.jitter_ms).filter((v) => v != null);
+  const avg = (arr) => (arr.length ? Math.round((arr.reduce((a, b) => a + b, 0) / arr.length) * 10) / 10 : null);
+  return { count: list.length, avg_download: avg(dl), avg_upload: avg(ul), avg_ping: avg(ping), avg_jitter: avg(jitter) };
+}
+
 function createMemoryStore() {
   const places = structuredClone(seedPlaces);
   const reviews = structuredClone(seedReviews);
   const users = structuredClone(seedUsers);
+  // seed wifi credentials
+  const wifiCredentials = [];
+  const wifiRatings = [];
+  const speedTests = [];
+  let nextSpeedId = 1;
+  // init from places with wifi_password/ssid as approved creds
+  for (const p of places) {
+    if (p.wifi_password || p.wifi_ssid) {
+      wifiCredentials.push({
+        id: wifiCredentials.length + 1,
+        place_id: p.id,
+        ssid: p.wifi_ssid || p.name.replace(/\s+/g, "-").toLowerCase().slice(0, 20),
+        password: p.wifi_password,
+        band: p.wifi_band || "auto",
+        password_source: p.password_source,
+        submitted_by_name: p.submitter_name,
+        submitted_by_email: p.submitter_email || "admin@balamwifi.id",
+        status: "approved",
+        avg_rating: 0,
+        rating_count: 0,
+        created_at: p.created_at,
+        updated_at: p.updated_at,
+      });
+    }
+  }
+  // add extra multi-SSID examples for hype/5GHz demo (place 2 & 4)
+  wifiCredentials.push({
+    id: wifiCredentials.length + 1,
+    place_id: 4,
+    ssid: "Nuri-5G",
+    password: "nuri-5g-fast",
+    band: "5GHz",
+    password_source: "Verified by staff",
+    submitted_by_name: "Adi Darmawan",
+    submitted_by_email: "adi@example.com",
+    status: "approved",
+    avg_rating: 4.5,
+    rating_count: 2,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  });
+  wifiCredentials.push({
+    id: wifiCredentials.length + 1,
+    place_id: 4,
+    ssid: "Nuri-2.4G",
+    password: "nuri-2g-stable",
+    band: "2.4GHz",
+    password_source: "Displayed on venue signage",
+    submitted_by_name: "Rina Lestari",
+    submitted_by_email: "rina@example.com",
+    status: "approved",
+    avg_rating: 4.0,
+    rating_count: 1,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  });
+  let nextWifiId = Math.max(...wifiCredentials.map((c) => c.id), 0) + 1;
+  let nextWifiRatingId = 1;
   let nextPlaceId = Math.max(...places.map((item) => item.id)) + 1;
   let nextReviewId = Math.max(...reviews.map((item) => item.id)) + 1;
 
@@ -217,7 +343,7 @@ function createMemoryStore() {
         total,
       };
     },
-    async getPlaceById(placeId) {
+    async getPlaceById(placeId, opts = {}) {
       const place = places.find((item) => Number(item.id) === Number(placeId));
       const metricsMap = buildMetricsMap(reviews);
 
@@ -232,9 +358,32 @@ function createMemoryStore() {
             new Date(right.created_at) - new Date(left.created_at),
         );
 
+      const isAuth = Boolean(opts.isAuthenticated);
+      const maskedPlace = applyHypeMask(withMetricsMap(place, metricsMap), isAuth);
+      const allCreds = wifiCredentials
+        .filter((c) => Number(c.place_id) === Number(placeId) && c.status === "approved")
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      const visibleCreds = maskWifiCredentials(allCreds, Boolean(place.is_hype), isAuth);
+      // attach ratings per cred
+      const credsWithRatings = visibleCreds.map((c) => ({
+        ...c,
+        ratings: wifiRatings.filter((r) => Number(r.credential_id) === Number(c.id)).sort((a, b) => new Date(b.created_at) - new Date(a.created_at)),
+      }));
+
+      // speed tests 30d stats
+      const placeSpeedTests = speedTests.filter((s) => Number(s.place_id) === Number(placeId));
+      const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+      const recent30 = placeSpeedTests.filter((s) => new Date(s.created_at).getTime() > thirtyDaysAgo);
+      const speedStats = { ...computeSpeedStats(recent30), total: placeSpeedTests.length, last_test_at: placeSpeedTests[0]?.created_at ?? null };
+      const recentSpeedTests = placeSpeedTests.slice(0, 5);
+
       return {
-        ...withMetricsMap(place, metricsMap),
+        ...maskedPlace,
         reviews: placeReviews,
+        wifi_credentials: credsWithRatings,
+        wifi_credentials_total: allCreds.length,
+        speed_tests: recentSpeedTests,
+        speed_stats: speedStats,
         related_places: places
           .filter((item) => item.status === "approved" && item.id !== place.id)
           .map((item) => withMetricsMap(item, metricsMap))
@@ -331,6 +480,143 @@ function createMemoryStore() {
         .filter((r) => r.author_email === email)
         .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
     },
+    async listWifiCredentials(placeId, opts = {}) {
+      const place = places.find((p) => Number(p.id) === Number(placeId));
+      const isAuth = Boolean(opts.isAuthenticated);
+      const limit = Number(opts.limit ?? 50);
+      const offset = Number(opts.offset ?? 0);
+      const filtered = wifiCredentials
+        .filter((c) => Number(c.place_id) === Number(placeId))
+        .filter((c) => opts.includePending ? true : c.status === "approved")
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      const total = filtered.length;
+      const slice = filtered.slice(offset, offset + limit).map((c) => ({
+        ...c,
+        ratings: wifiRatings.filter((r) => Number(r.credential_id) === Number(c.id)),
+      }));
+      const masked = maskWifiCredentials(slice, Boolean(place?.is_hype), isAuth);
+      return { data: masked, total };
+    },
+    async createWifiCredential(payload) {
+      const normalized = normalizeWifiPayload(payload);
+      if (!normalized.ssid) throw new Error("SSID wajib diisi");
+      const place = places.find((p) => Number(p.id) === Number(normalized.place_id));
+      if (!place || place.status !== "approved") throw new Error("Place not found or not approved");
+      if (normalized.password && !normalized.password_source) throw new Error("password_source wajib saat password diisi");
+      const record = {
+        id: nextWifiId++,
+        place_id: normalized.place_id,
+        ssid: normalized.ssid,
+        password: normalized.password,
+        band: ["2.4GHz", "5GHz", "6GHz", "auto"].includes(normalized.band) ? normalized.band : "auto",
+        password_source: normalized.password_source,
+        submitted_by_name: normalized.submitted_by_name,
+        submitted_by_email: normalized.submitted_by_email,
+        status: "pending",
+        avg_rating: 0,
+        rating_count: 0,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      wifiCredentials.unshift(record);
+      return record;
+    },
+    async rateWifiCredential(credentialId, payload) {
+      const cred = wifiCredentials.find((c) => Number(c.id) === Number(credentialId));
+      if (!cred || cred.status !== "approved") throw new Error("Credential not found or not approved");
+      const existing = wifiRatings.find((r) => Number(r.credential_id) === Number(credentialId) && r.rater_email === payload.raterEmail);
+      if (existing) throw new Error("Kamu sudah memberi rating untuk kredensial ini");
+      const record = {
+        id: nextWifiRatingId++,
+        credential_id: Number(credentialId),
+        rater_name: payload.raterName,
+        rater_email: payload.raterEmail,
+        rating: Number(payload.rating),
+        comment: payload.comment ? String(payload.comment).trim() : null,
+        created_at: new Date().toISOString(),
+      };
+      wifiRatings.unshift(record);
+      // recalc
+      const related = wifiRatings.filter((r) => Number(r.credential_id) === Number(credentialId));
+      const avg = related.reduce((s, r) => s + Number(r.rating), 0) / related.length;
+      cred.avg_rating = Math.round(avg * 10) / 10;
+      cred.rating_count = related.length;
+      cred.updated_at = new Date().toISOString();
+      return record;
+    },
+    async listAdminWifiCredentials() {
+      const pending = wifiCredentials
+        .filter((c) => c.status === "pending")
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      return pending;
+    },
+    async updateWifiCredentialStatus(credentialId, status) {
+      const cred = wifiCredentials.find((c) => Number(c.id) === Number(credentialId));
+      if (!cred) return null;
+      cred.status = status;
+      cred.updated_at = new Date().toISOString();
+      if (status === "approved") {
+        const place = places.find((p) => Number(p.id) === Number(cred.place_id));
+        if (place) {
+          place.wifi_ssid = cred.ssid;
+          place.wifi_password = cred.password;
+          place.password_source = cred.password_source;
+          place.wifi_band = cred.band;
+          place.updated_at = new Date().toISOString();
+        }
+      }
+      return cred;
+    },
+    async createSpeedTest(payload, meta = {}) {
+      const normalized = normalizeSpeedPayload(payload);
+      if (!normalized.place_id || !Number.isFinite(normalized.place_id)) throw new Error("placeId wajib");
+      const place = places.find((p) => Number(p.id) === Number(normalized.place_id));
+      if (!place || place.status !== "approved") throw new Error("Place not found or not approved");
+      if (normalized.download_mbps == null || !Number.isFinite(normalized.download_mbps)) throw new Error("downloadMbps wajib");
+      // rate limit 3/jam per user per place
+      const effectiveEmail = normalized.tested_by_email || meta.testerEmail;
+      if (!effectiveEmail) throw new Error("tester email wajib");
+      const oneHourAgo = Date.now() - 60 * 60 * 1000;
+      const recent = speedTests.filter((s) => Number(s.place_id) === Number(normalized.place_id) && s.tested_by_email === effectiveEmail && new Date(s.created_at).getTime() > oneHourAgo);
+      if (recent.length >= 3) throw new Error("Batas 3 tes per jam per lokasi tercapai");
+      const record = {
+        id: nextSpeedId++,
+        place_id: normalized.place_id,
+        download_mbps: normalized.download_mbps,
+        upload_mbps: normalized.upload_mbps,
+        ping_ms: normalized.ping_ms,
+        jitter_ms: normalized.jitter_ms,
+        loaded_latency_ms: normalized.loaded_latency_ms,
+        packet_loss: normalized.packet_loss,
+        duration_ms: normalized.duration_ms,
+        raw_summary: normalized.raw_summary,
+        tested_by_name: normalized.tested_by_name || meta.testerName || "Anon",
+        tested_by_email: normalized.tested_by_email || meta.testerEmail,
+        ip_hash: meta.ipHash ?? normalized.ip_hash ?? null,
+        created_at: new Date().toISOString(),
+      };
+      speedTests.unshift(record);
+      return record;
+    },
+    async listSpeedTests(placeId, opts = {}) {
+      const limit = Number(opts.limit ?? 20);
+      const offset = Number(opts.offset ?? 0);
+      const filtered = speedTests.filter((s) => Number(s.place_id) === Number(placeId)).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      const total = filtered.length;
+      const slice = filtered.slice(offset, offset + limit);
+      // 30-day stats
+      const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+      const recent30 = filtered.filter((s) => new Date(s.created_at).getTime() > thirtyDaysAgo);
+      const stats = { ...computeSpeedStats(recent30), total, last_test_at: filtered[0]?.created_at ?? null };
+      const overall = computeSpeedStats(filtered);
+      return { data: slice, total, stats, overall };
+    },
+    async getSpeedStats(placeId) {
+      const filtered = speedTests.filter((s) => Number(s.place_id) === Number(placeId));
+      const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+      const recent30 = filtered.filter((s) => new Date(s.created_at).getTime() > thirtyDaysAgo);
+      return { ...computeSpeedStats(recent30), total: filtered.length, recent30Count: recent30.length, last_test_at: filtered[0]?.created_at ?? null };
+    },
   };
 }
 
@@ -401,6 +687,7 @@ function mapRow(row) {
     has_power_outlets: row.has_power_outlets,
     open_24_hours: row.open_24_hours,
     quiet_zone: row.quiet_zone,
+    is_hype: Boolean(row.is_hype),
     wifi_speed_mbps:
       row.wifi_speed_mbps === null ? null : Number(row.wifi_speed_mbps),
     upload_mbps: row.upload_mbps === null ? null : Number(row.upload_mbps),
@@ -414,6 +701,14 @@ function mapRow(row) {
   };
 }
 
+function mapWifiRow(row) {
+  return {
+    ...row,
+    avg_rating: row.avg_rating === null ? 0 : Number(row.avg_rating),
+    rating_count: row.rating_count === null ? 0 : Number(row.rating_count),
+  };
+}
+
 const placeListColumns = `
   p.id,
   p.name,
@@ -423,6 +718,9 @@ const placeListColumns = `
   p.wifi_available,
   p.wifi_access_type,
   p.wifi_speed_mbps,
+  p.wifi_ssid,
+  p.wifi_band,
+  p.is_hype,
   p.image_tone,
   p.image_url,
   p.submitter_name,
@@ -507,8 +805,11 @@ function createPostgresStore() {
       if (process.env.DB_SCHEMA_SYNC === "false") {
         return;
       }
-
-      await pool.query(schemaSql);
+      try {
+        await pool.query(schemaSql);
+      } catch (e) {
+        console.error("[db] schema sync failed:", e.message, "- continuing");
+      }
     },
     async listPlaces(filters = {}) {
       const params = [];
@@ -529,7 +830,7 @@ function createPostgresStore() {
         total: countResult.rows[0]?.total ?? 0,
       };
     },
-    async getPlaceById(placeId) {
+    async getPlaceById(placeId, opts = {}) {
       const placeResult = await pool.query(
         `
           SELECT
@@ -549,17 +850,23 @@ function createPostgresStore() {
         return null;
       }
 
-      const [reviewsResult, relatedResult] = await Promise.all([
-        pool.query(
-          `
+      const isAuth = Boolean(opts.isAuthenticated);
+      const basePlace = mapRow(placeResult.rows[0]);
+      const maskedPlace = applyHypeMask(basePlace, isAuth);
+
+      const reviewsResult = await pool.query(
+        `
             SELECT id, place_id, author_name, author_email, review_title, rating_speed, rating_comfort, image_url, comment, created_at
             FROM reviews
             WHERE place_id = $1
             ORDER BY created_at DESC
           `,
-          [placeId],
-        ),
-        pool.query(
+        [placeId],
+      ).catch(() => ({ rows: [] }));
+
+      let relatedRows = [];
+      try {
+        const relatedResult = await pool.query(
           `
             SELECT
               ${placeListColumns},
@@ -574,13 +881,81 @@ function createPostgresStore() {
             LIMIT 3
           `,
           [placeId],
-        ),
-      ]);
+        );
+        relatedRows = relatedResult.rows.map(mapRow);
+      } catch (e) {
+        console.error("[db] related_places fallback:", e.message);
+        // fallback without new columns
+        const fallback = await pool.query(
+          `SELECT p.id, p.name, p.wifi_speed_mbps, p.image_tone, p.image_url, p.submitter_name, p.status, p.created_at, p.updated_at,
+              COALESCE(m.avg_rating,0)::numeric(10,2) as avg_rating, COALESCE(m.review_count,0)::int as review_count,
+              COALESCE(m.avg_speed_rating,0)::numeric(10,2) as avg_speed_rating, COALESCE(m.avg_comfort_rating,0)::numeric(10,2) as avg_comfort_rating
+           FROM places p LEFT JOIN place_metrics m ON m.place_id=p.id WHERE p.status='approved' AND p.id<>$1 ORDER BY COALESCE(m.avg_rating,0) DESC LIMIT 3`,
+          [placeId],
+        ).catch(() => ({ rows: [] }));
+        relatedRows = fallback.rows.map(mapRow);
+      }
+
+      let wifiCredsRaw = [];
+      let wifiResult = { rows: [] };
+      try {
+        wifiResult = await pool.query(
+          `SELECT * FROM wifi_credentials WHERE place_id = $1 AND status = 'approved' ORDER BY created_at DESC`,
+          [placeId],
+        );
+        wifiCredsRaw = wifiResult.rows.map(mapWifiRow);
+      } catch (e) {
+        console.error("[db] wifi_credentials fallback:", e.message);
+        wifiCredsRaw = [];
+      }
+      const wifiCredsMasked = maskWifiCredentials(wifiCredsRaw, Boolean(basePlace.is_hype), isAuth);
+      // attach ratings for each cred (limit per cred 5 latest)
+      const credsWithRatings = await Promise.all(
+        wifiCredsMasked.map(async (c) => {
+          try {
+            const r = await pool.query(
+              `SELECT * FROM wifi_credential_ratings WHERE credential_id = $1 ORDER BY created_at DESC LIMIT 20`,
+              [c.id],
+            );
+            return { ...c, ratings: r.rows };
+          } catch {
+            return { ...c, ratings: [] };
+          }
+        }),
+      );
+
+      // speed tests - 30d stats + recent 5
+      let speedTestsRaw = [];
+      let speedStats = { count: 0, avg_download: null, avg_upload: null, avg_ping: null, avg_jitter: null, total: 0, last_test_at: null };
+      try {
+        const stRes = await pool.query(`SELECT * FROM speed_tests WHERE place_id = $1 ORDER BY created_at DESC LIMIT 5`, [placeId]);
+        speedTestsRaw = stRes.rows.map(mapSpeedRow);
+        const statsRes = await pool.query(
+          `SELECT COUNT(*)::int as count, ROUND(AVG(download_mbps)::numeric,1) as avg_download, ROUND(AVG(upload_mbps)::numeric,1) as avg_upload, ROUND(AVG(ping_ms)::numeric,1) as avg_ping, ROUND(AVG(jitter_ms)::numeric,1) as avg_jitter FROM speed_tests WHERE place_id = $1 AND created_at > NOW() - INTERVAL '30 days'`,
+          [placeId],
+        );
+        const totalRes = await pool.query(`SELECT COUNT(*)::int as total, MAX(created_at) as last_test_at FROM speed_tests WHERE place_id = $1`, [placeId]);
+        speedStats = {
+          count: Number(statsRes.rows[0]?.count ?? 0),
+          avg_download: statsRes.rows[0]?.avg_download != null ? Number(statsRes.rows[0].avg_download) : null,
+          avg_upload: statsRes.rows[0]?.avg_upload != null ? Number(statsRes.rows[0].avg_upload) : null,
+          avg_ping: statsRes.rows[0]?.avg_ping != null ? Number(statsRes.rows[0].avg_ping) : null,
+          avg_jitter: statsRes.rows[0]?.avg_jitter != null ? Number(statsRes.rows[0].avg_jitter) : null,
+          total: Number(totalRes.rows[0]?.total ?? 0),
+          last_test_at: totalRes.rows[0]?.last_test_at ?? null,
+        };
+      } catch (e) {
+        console.error("[db] speed_tests fallback:", e.message);
+      }
 
       return {
-        ...mapRow(placeResult.rows[0]),
+        ...maskedPlace,
         reviews: reviewsResult.rows,
-        related_places: relatedResult.rows.map(mapRow),
+        wifi_credentials: credsWithRatings,
+        wifi_credentials_total: wifiCredsRaw.length,
+        speed_tests: speedTestsRaw,
+        speed_stats: speedStats,
+        related_places: relatedRows,
       };
     },
     async createPlaceSubmission(payload) {
@@ -592,14 +967,14 @@ function createPostgresStore() {
             wifi_access_type, wifi_password, password_source, access_notes, wifi_speed_mbps,
             upload_mbps, ping_ms, has_power_outlets, open_24_hours, quiet_zone,
             ambience_label, map_context, operating_hours, image_tone, image_url,
-            submitter_name, submitter_email, status
+            submitter_name, submitter_email, wifi_ssid, wifi_band, is_hype, status
           )
           VALUES (
             $1, $2, $3, $4, $5, $6, $7,
             $8, $9, $10, $11, $12,
             $13, $14, $15, $16, $17,
             $18, $19, $20, $21, $22,
-            $23, $24, 'pending'
+            $23, $24, $25, $26, $27, 'pending'
           )
           RETURNING *
         `,
@@ -628,6 +1003,9 @@ function createPostgresStore() {
           normalized.image_url,
           normalized.submitter_name,
           normalized.submitter_email,
+          normalized.wifi_ssid,
+          normalized.wifi_band,
+          normalized.is_hype,
         ],
       );
       await refreshPlaceMetrics(result.rows[0].id);
@@ -752,13 +1130,188 @@ function createPostgresStore() {
       );
       return result.rows;
     },
+    async listWifiCredentials(placeId, opts = {}) {
+      try {
+        const placeRes = await pool.query(`SELECT is_hype FROM places WHERE id = $1`, [placeId]);
+        const isHype = Boolean(placeRes.rows[0]?.is_hype);
+        const isAuth = Boolean(opts.isAuthenticated);
+        const limit = Number(opts.limit ?? 50);
+        const offset = Number(opts.offset ?? 0);
+        const statusFilter = opts.includePending ? "" : "AND status = 'approved'";
+        const result = await pool.query(
+          `SELECT * FROM wifi_credentials WHERE place_id = $1 ${statusFilter} ORDER BY created_at DESC LIMIT $2 OFFSET $3`,
+          [placeId, limit, offset],
+        );
+        const countRes = await pool.query(
+          `SELECT COUNT(*)::int as total FROM wifi_credentials WHERE place_id = $1 ${statusFilter}`,
+          [placeId],
+        );
+        const rows = result.rows.map(mapWifiRow);
+        const masked = maskWifiCredentials(rows, isHype, isAuth);
+        const withRatings = await Promise.all(
+          masked.map(async (c) => {
+            try {
+              const r = await pool.query(`SELECT * FROM wifi_credential_ratings WHERE credential_id = $1 ORDER BY created_at DESC`, [c.id]);
+              return { ...c, ratings: r.rows };
+            } catch { return { ...c, ratings: [] }; }
+          }),
+        );
+        return { data: withRatings, total: countRes.rows[0].total };
+      } catch (e) {
+        console.error("[db] listWifiCredentials fallback:", e.message);
+        return { data: [], total: 0 };
+      }
+    },
+    async createWifiCredential(payload) {
+      const normalized = normalizeWifiPayload(payload);
+      if (!normalized.ssid) throw new Error("SSID wajib diisi");
+      const placeCheck = await pool.query(`SELECT status, is_hype FROM places WHERE id = $1`, [normalized.place_id]);
+      if (!placeCheck.rows.length || placeCheck.rows[0].status !== "approved") throw new Error("Place not found or not approved");
+      if (normalized.password && !normalized.password_source) throw new Error("password_source wajib saat password diisi");
+      const band = ["2.4GHz", "5GHz", "6GHz", "auto"].includes(normalized.band) ? normalized.band : "auto";
+      const result = await pool.query(
+        `INSERT INTO wifi_credentials (place_id, ssid, password, band, password_source, submitted_by_name, submitted_by_email, status)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,'pending') RETURNING *`,
+        [normalized.place_id, normalized.ssid, normalized.password, band, normalized.password_source, normalized.submitted_by_name, normalized.submitted_by_email],
+      );
+      return mapWifiRow(result.rows[0]);
+    },
+    async rateWifiCredential(credentialId, payload) {
+      const credRes = await pool.query(`SELECT * FROM wifi_credentials WHERE id = $1`, [credentialId]);
+      if (!credRes.rows.length || credRes.rows[0].status !== "approved") throw new Error("Credential not found or not approved");
+      try {
+        const result = await pool.query(
+          `INSERT INTO wifi_credential_ratings (credential_id, rater_name, rater_email, rating, comment)
+           VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+          [credentialId, payload.raterName, payload.raterEmail, Number(payload.rating), payload.comment || null],
+        );
+        await pool.query(
+          `UPDATE wifi_credentials SET avg_rating = (SELECT ROUND(AVG(rating)::numeric,1) FROM wifi_credential_ratings WHERE credential_id = $1), rating_count = (SELECT COUNT(*) FROM wifi_credential_ratings WHERE credential_id = $1), updated_at = NOW() WHERE id = $1`,
+          [credentialId],
+        );
+        return result.rows[0];
+      } catch (e) {
+        if (e.code === "23505") throw new Error("Kamu sudah memberi rating untuk kredensial ini");
+        throw e;
+      }
+    },
+    async listAdminWifiCredentials() {
+      try {
+        const result = await pool.query(`SELECT * FROM wifi_credentials WHERE status = 'pending' ORDER BY created_at DESC`);
+        return result.rows.map(mapWifiRow);
+      } catch (e) {
+        console.error("[db] listAdminWifi fallback:", e.message);
+        return [];
+      }
+    },
+    async updateWifiCredentialStatus(credentialId, status) {
+      const result = await pool.query(`UPDATE wifi_credentials SET status = $2, updated_at = NOW() WHERE id = $1 RETURNING *`, [credentialId, status]);
+      if (!result.rows.length) return null;
+      if (status === "approved") {
+        const cred = result.rows[0];
+        await pool.query(`UPDATE places SET wifi_ssid = $2, wifi_password = $3, password_source = $4, wifi_band = $5, updated_at = NOW() WHERE id = $1`, [cred.place_id, cred.ssid, cred.password, cred.password_source, cred.band]);
+      }
+      return mapWifiRow(result.rows[0]);
+    },
+    async createSpeedTest(payload, meta = {}) {
+      const normalized = normalizeSpeedPayload(payload);
+      if (!normalized.place_id || !Number.isFinite(normalized.place_id)) throw new Error("placeId wajib");
+      const placeCheck = await pool.query(`SELECT status FROM places WHERE id = $1`, [normalized.place_id]);
+      if (!placeCheck.rows.length || placeCheck.rows[0].status !== "approved") throw new Error("Place not found or not approved");
+      if (normalized.download_mbps == null || !Number.isFinite(normalized.download_mbps)) throw new Error("downloadMbps wajib");
+      // rate limit 3/jam
+      const effectiveEmailPg = normalized.tested_by_email || meta.testerEmail;
+      if (!effectiveEmailPg) throw new Error("tester email wajib");
+      try {
+        const recentRes = await pool.query(`SELECT COUNT(*)::int as cnt FROM speed_tests WHERE place_id = $1 AND tested_by_email = $2 AND created_at > NOW() - INTERVAL '1 hour'`, [normalized.place_id, effectiveEmailPg]);
+        if ((recentRes.rows[0]?.cnt ?? 0) >= 3) throw new Error("Batas 3 tes per jam per lokasi tercapai");
+      } catch (e) {
+        if (e.message.includes("Batas 3 tes")) throw e;
+        // ignore if table not exists yet
+      }
+      const result = await pool.query(
+        `INSERT INTO speed_tests (place_id, download_mbps, upload_mbps, ping_ms, jitter_ms, loaded_latency_ms, packet_loss, duration_ms, raw_summary, tested_by_name, tested_by_email, ip_hash)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
+        [normalized.place_id, normalized.download_mbps, normalized.upload_mbps, normalized.ping_ms, normalized.jitter_ms, normalized.loaded_latency_ms, normalized.packet_loss, normalized.duration_ms, normalized.raw_summary ? JSON.stringify(normalized.raw_summary) : null, normalized.tested_by_name || meta.testerName || "Anon", normalized.tested_by_email || meta.testerEmail, meta.ipHash ?? normalized.ip_hash ?? null],
+      );
+      return mapSpeedRow(result.rows[0]);
+    },
+    async listSpeedTests(placeId, opts = {}) {
+      try {
+        const limit = Number(opts.limit ?? 20);
+        const offset = Number(opts.offset ?? 0);
+        const result = await pool.query(`SELECT * FROM speed_tests WHERE place_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`, [placeId, limit, offset]);
+        const countRes = await pool.query(`SELECT COUNT(*)::int as total FROM speed_tests WHERE place_id = $1`, [placeId]);
+        const data = result.rows.map(mapSpeedRow);
+        // 30d stats
+        const statsRes = await pool.query(
+          `SELECT COUNT(*)::int as count, ROUND(AVG(download_mbps)::numeric,1) as avg_download, ROUND(AVG(upload_mbps)::numeric,1) as avg_upload, ROUND(AVG(ping_ms)::numeric,1) as avg_ping, ROUND(AVG(jitter_ms)::numeric,1) as avg_jitter FROM speed_tests WHERE place_id = $1 AND created_at > NOW() - INTERVAL '30 days'`,
+          [placeId],
+        );
+        const overallRes = await pool.query(
+          `SELECT COUNT(*)::int as count, ROUND(AVG(download_mbps)::numeric,1) as avg_download, ROUND(AVG(upload_mbps)::numeric,1) as avg_upload, ROUND(AVG(ping_ms)::numeric,1) as avg_ping, ROUND(AVG(jitter_ms)::numeric,1) as avg_jitter, MAX(created_at) as last_test_at FROM speed_tests WHERE place_id = $1`,
+          [placeId],
+        );
+        const stats = {
+          count: Number(statsRes.rows[0]?.count ?? 0),
+          avg_download: statsRes.rows[0]?.avg_download != null ? Number(statsRes.rows[0].avg_download) : null,
+          avg_upload: statsRes.rows[0]?.avg_upload != null ? Number(statsRes.rows[0].avg_upload) : null,
+          avg_ping: statsRes.rows[0]?.avg_ping != null ? Number(statsRes.rows[0].avg_ping) : null,
+          avg_jitter: statsRes.rows[0]?.avg_jitter != null ? Number(statsRes.rows[0].avg_jitter) : null,
+          total: Number(countRes.rows[0]?.total ?? 0),
+          last_test_at: overallRes.rows[0]?.last_test_at ?? null,
+        };
+        return { data, total: Number(countRes.rows[0]?.total ?? 0), stats };
+      } catch (e) {
+        console.error("[db] listSpeedTests fallback:", e.message);
+        return { data: [], total: 0, stats: { count: 0, avg_download: null, avg_upload: null, avg_ping: null, avg_jitter: null } };
+      }
+    },
+    async getSpeedStats(placeId) {
+      try {
+        const statsRes = await pool.query(
+          `SELECT COUNT(*)::int as count, ROUND(AVG(download_mbps)::numeric,1) as avg_download, ROUND(AVG(upload_mbps)::numeric,1) as avg_upload, ROUND(AVG(ping_ms)::numeric,1) as avg_ping, ROUND(AVG(jitter_ms)::numeric,1) as avg_jitter FROM speed_tests WHERE place_id = $1 AND created_at > NOW() - INTERVAL '30 days'`,
+          [placeId],
+        );
+        const overallRes = await pool.query(`SELECT COUNT(*)::int as total, MAX(created_at) as last_test_at FROM speed_tests WHERE place_id = $1`, [placeId]);
+        return {
+          count: Number(statsRes.rows[0]?.count ?? 0),
+          avg_download: statsRes.rows[0]?.avg_download != null ? Number(statsRes.rows[0].avg_download) : null,
+          avg_upload: statsRes.rows[0]?.avg_upload != null ? Number(statsRes.rows[0].avg_upload) : null,
+          avg_ping: statsRes.rows[0]?.avg_ping != null ? Number(statsRes.rows[0].avg_ping) : null,
+          avg_jitter: statsRes.rows[0]?.avg_jitter != null ? Number(statsRes.rows[0].avg_jitter) : null,
+          total: Number(overallRes.rows[0]?.total ?? 0),
+          last_test_at: overallRes.rows[0]?.last_test_at ?? null,
+        };
+      } catch (e) {
+        console.error("[db] getSpeedStats fallback:", e.message);
+        return { count: 0, avg_download: null, avg_upload: null, avg_ping: null, avg_jitter: null, total: 0, last_test_at: null };
+      }
+    },
   };
 }
 
 export async function createStore() {
-  const store = process.env.DATABASE_URL
-    ? createPostgresStore()
-    : createMemoryStore();
-  await store.initialize();
-  return store;
+  if (!process.env.DATABASE_URL) {
+    const m = createMemoryStore();
+    await m.initialize();
+    return m;
+  }
+  // in test, force memory if DATABASE_URL was explicitly cleared to "" then re-injected
+  if (process.env.NODE_ENV === "test" && !String(process.env.DATABASE_URL).includes("postgres")) {
+    const m = createMemoryStore();
+    await m.initialize();
+    return m;
+  }
+  try {
+    const pgStore = createPostgresStore();
+    await pgStore.initialize();
+    return pgStore;
+  } catch (e) {
+    console.error("[db] postgres failed, fallback to memory:", e.message);
+    const m = createMemoryStore();
+    await m.initialize();
+    m.mode = "memory-fallback";
+    return m;
+  }
 }
