@@ -17,22 +17,24 @@ export function SectionHeader({ eyebrow, title, description, action }) {
 }
 
 export function PlaceCard({ place }) {
+  const rating = Number(place.avg_rating ?? 0);
   return (
-    <article className={`place-card tone--${place.image_tone || 'lagoon'}`}>
+    <Link href={`/places/${place.id}`} className={`place-card place-card--link tone--${place.image_tone || 'lagoon'}`}>
       <div className="place-card__media">
         {place.image_url ? <Image src={place.image_url} alt="" width={640} height={360} sizes="(max-width: 760px) 100vw, 33vw" /> : null}
       </div>
       <div className="place-card__body">
         <div className="place-card__heading">
           <div>
-            <h3>{place.name}</h3>
+            <h3>{place.name} {place.is_hype ? <StatusPill tone="warning">HYPE</StatusPill> : null}</h3>
           </div>
           <div className="rating-badge">
-            <strong>{place.avg_rating.toFixed(1)}</strong>
+            <strong>{rating.toFixed(1)}</strong>
           </div>
         </div>
         <p className="place-card__address">{place.address}</p>
         {place.submitter_name ? <p className="place-card__credit">Dikontribusikan oleh {place.submitter_name}</p> : null}
+        {place.wifi_ssid ? <p className="place-card__credit">SSID: {place.wifi_ssid} {place.wifi_band ? <StatusPill tone="info">{place.wifi_band}</StatusPill> : null}</p> : null}
         <div className="place-card__stats">
           <div>
             <span>Unduh</span>
@@ -44,12 +46,11 @@ export function PlaceCard({ place }) {
           </div>
         </div>
         <div className="place-card__footer">
-          <Link href={`/places/${place.id}`} className="button button--primary">
-            Buka detail
-          </Link>
+          <span className="button button--primary">Buka detail</span>
+          <span className="button button--ghost button--small">Lihat WiFi</span>
         </div>
       </div>
-    </article>
+    </Link>
   )
 }
 
@@ -129,8 +130,8 @@ export function LoadingGrid() {
   )
 }
 
-export function InfoBanner({ children, tone = 'muted' }) {
-  return <div className={`info-banner info-banner--${tone}`}>{children}</div>
+export function InfoBanner({ children, tone = 'muted', style, className }) {
+  return <div className={`info-banner info-banner--${tone}${className ? ` ${className}` : ''}`} style={style}>{children}</div>
 }
 
 export function EmptyState({ title, description }) {

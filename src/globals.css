@@ -200,19 +200,24 @@
 }
 
 .place-card__footer {
-    align-self: end;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 4px;
 }
-
 .place-card__footer .button {
-    width: 100%;
+    flex: 1 1 120px;
 }
 
-.place-card,
 .panel,
 .review-card,
 .submission-card {
     content-visibility: auto;
     contain-intrinsic-size: 360px;
+}
+.place-card {
+    content-visibility: visible;
+    contain-intrinsic-size: auto;
 }
 
 .page {
@@ -242,6 +247,7 @@
         linear-gradient(rgba(24, 24, 23, 0.06) 1px, transparent 1px), #ded5c4;
     background-size: 24px 24px;
     opacity: 0.55;
+    pointer-events: none;
 }
 
 .hero-panel__content {
@@ -1151,11 +1157,17 @@
     padding: 20px;
 }
 
+.place-card--link {
+    display: grid;
+    text-decoration: none;
+    color: inherit;
+    cursor: pointer;
+}
 .place-card__body {
-    grid-template-rows:
-        minmax(84px, auto) minmax(78px, auto) minmax(76px, auto)
-        1fr;
-    height: 100%;
+    display: grid;
+    gap: 14px;
+    align-content: start;
+    height: auto;
 }
 
 .place-card__heading,
@@ -2206,6 +2218,17 @@
         top: 100px;
     }
 }
+
+.wifi-cred-list { display: grid; gap: 14px; }
+.wifi-cred-card { border: 1px solid #d8d1c3; border-radius: 18px; background: #f7f3ea; padding: 14px; display: grid; gap: 10px; }
+.wifi-cred-card__head { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.wifi-cred-card__head strong { font-size: 1.05rem; color: #181817; }
+.wifi-cred-card__meta { color: #6f685c; font-size: 0.82rem; margin: 4px 0 0; }
+.wifi-cred-card__ratings { display: grid; gap: 6px; margin-top: 10px; padding-top: 10px; border-top: 1px dashed #d8d1c3; }
+.wifi-rating-mini { font-size: 0.85rem; color: #3a352d; }
+.wifi-rating-form { display: grid; gap: 8px; grid-template-columns: 90px 1fr auto; align-items: end; margin-top: 8px; }
+.field--inline span { font-size: 0.78rem; }
+@media (max-width: 720px) { .wifi-rating-form { grid-template-columns: 1fr; } }
 
 @media (min-width: 1080px) {
     .hero-panel {
