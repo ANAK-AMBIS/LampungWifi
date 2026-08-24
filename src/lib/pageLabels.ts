@@ -1,4 +1,4 @@
-export function localizeSpeed(speed) {
+export function localizeSpeed(speed: string): string {
   return {
     steady: 'Stabil',
     fast: 'Cepat',
@@ -6,7 +6,7 @@ export function localizeSpeed(speed) {
   }[speed] || speed
 }
 
-export function localizeStatus(status) {
+export function localizeStatus(status: string): string {
   return {
     pending: 'Menunggu',
     approved: 'Disetujui',

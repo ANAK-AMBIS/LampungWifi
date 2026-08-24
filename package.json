@@ -11,6 +11,8 @@
     "build": "next build",
     "db:seed": "node server/seed.js",
     "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "preview": "npm run start",
     "start": "concurrently -k \"node server/index.js\" \"next start\"",
     "start:api": "node server/index.js",
@@ -18,10 +20,13 @@
   },
   "dependencies": {
     "concurrently": "^9.2.1",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "express-rate-limit": "^8.5.2",
     "google-auth-library": "^10.5.0",
+    "lucide-react": "^1.20.0",
     "next": "^16.0.8",
     "pg": "^8.20.0",
     "react": "^19.2.5",
@@ -30,10 +35,18 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@types/node": "25.9.3",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.2",
     "eslint": "^10.2.1",
     "eslint-plugin-react-hooks": "^7.1.1",
-    "globals": "^17.5.0"
+    "globals": "^17.5.0",
+    "jsdom": "^29.1.1",
+    "supertest": "^7.2.2",
+    "typescript": "6.0.3",
+    "vitest": "^4.1.9"
   }
 }

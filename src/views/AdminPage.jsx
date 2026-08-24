@@ -1,98 +1,118 @@
-'use client'
+"use client";
 
-import { useEffect, useState } from 'react'
-import { getAdminSubmissions, updateSubmissionStatus } from '../api'
-import { localizeLabel } from '../lib/constants'
-import { formatDate, formatMbps } from '../lib/format'
-import { InfoBanner, LoadingGrid, MetricTile, SectionHeader, StatusPill } from '../components/ui'
-import { localizeStatus } from '../lib/pageLabels'
+import { useEffect, useState } from "react";
+import { getAdminSubmissions, updateSubmissionStatus } from "../api";
+import { localizeLabel } from "../lib/constants";
+import { formatDate, formatMbps } from "../lib/format";
+import {
+  InfoBanner,
+  LoadingGrid,
+  MetricTile,
+  SectionHeader,
+  StatusPill,
+} from "../components/ui";
+import { localizeStatus } from "../lib/pageLabels";
 
 export function AdminPage() {
-  const [adminToken, setAdminToken] = useState('')
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [loginError, setLoginError] = useState("");
   const [state, setState] = useState({
     loading: true,
-    error: '',
-    source: '',
+    error: "",
+    source: "",
     stats: null,
     submissions: [],
-  })
-  const [busyId, setBusyId] = useState(null)
+  });
+  const [busyId, setBusyId] = useState(null);
 
   useEffect(() => {
-    setAdminToken(window.localStorage.getItem('balamwifi_admin_token') ?? '')
-  }, [])
-
-  useEffect(() => {
-    let active = true
+    let active = true;
 
     async function loadQueue() {
       try {
-        setState((current) => ({ ...current, loading: true, error: '' }))
-        const response = await getAdminSubmissions(adminToken)
+        setState((current) => ({ ...current, loading: true, error: "" }));
+        const response = await getAdminSubmissions();
 
         if (!active) {
-          return
+          return;
         }
 
         setState({
           loading: false,
-          error: '',
+          error: "",
           source: response.meta.source,
           stats: response.data.stats,
           submissions: response.data.submissions,
-        })
+        });
       } catch (error) {
         if (!active) {
-          return
+          return;
         }
 
         setState({
           loading: false,
           error: error.message,
-          source: '',
+          source: "",
           stats: null,
           submissions: [],
-        })
+        });
       }
     }
 
-    loadQueue()
+    loadQueue();
     return () => {
-      active = false
+      active = false;
+    };
+  }, [isAuthenticated]);
+
+  async function handleLogin(event) {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    const token = String(formData.get("adminToken") ?? "").trim();
+
+    if (!token) {
+      setLoginError("Token tidak boleh kosong");
+      return;
     }
-  }, [adminToken])
 
-  function saveAdminToken(event) {
-    event.preventDefault()
-    const formData = new FormData(event.currentTarget)
-    const token = String(formData.get('adminToken') ?? '').trim()
+    setLoginError("");
 
-    if (token) {
-      window.localStorage.setItem('balamwifi_admin_token', token)
-    } else {
-      window.localStorage.removeItem('balamwifi_admin_token')
+    try {
+      const response = await fetch("/api/admin/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token }),
+      });
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        setLoginError(payload.error || "Token tidak valid");
+        return;
+      }
+
+      setIsAuthenticated(true);
+    } catch (error) {
+      setLoginError(error.message);
     }
-
-    setAdminToken(token)
   }
 
   async function moderate(placeId, status) {
-    setBusyId(placeId)
+    setBusyId(placeId);
 
     try {
-      await updateSubmissionStatus(placeId, status, adminToken)
-      const refreshed = await getAdminSubmissions(adminToken)
+      await updateSubmissionStatus(placeId, status);
+      const refreshed = await getAdminSubmissions();
       setState({
         loading: false,
-        error: '',
+        error: "",
         source: refreshed.meta.source,
         stats: refreshed.data.stats,
         submissions: refreshed.data.submissions,
-      })
+      });
     } catch (error) {
-      setState((current) => ({ ...current, error: error.message }))
+      setState((current) => ({ ...current, error: error.message }));
     } finally {
-      setBusyId(null)
+      setBusyId(null);
     }
   }
 
@@ -100,25 +120,32 @@ export function AdminPage() {
     <main className="page">
       <section className="section">
         <SectionHeader
-          eyebrow="Akses moderator"
           title="Menunggu persetujuan"
           description="Antrean admin menjaga aturan password legal dan memblokir data WiFi pribadi yang belum terverifikasi."
-          action={<StatusPill tone="muted">Sumber: {state.source || 'memuat'}</StatusPill>}
+          action={
+            <StatusPill tone="muted">
+              Sumber: {state.source || "memuat"}
+            </StatusPill>
+          }
         />
 
-        {state.error ? <InfoBanner tone="danger">{state.error}</InfoBanner> : null}
-        <form className="admin-token-form" onSubmit={saveAdminToken}>
+        {state.error ? (
+          <InfoBanner tone="danger">{state.error}</InfoBanner>
+        ) : null}
+        {loginError ? (
+          <InfoBanner tone="danger">{loginError}</InfoBanner>
+        ) : null}
+        <form className="admin-token-form" onSubmit={handleLogin}>
           <label className="field">
             <span>Token admin</span>
             <input
               name="adminToken"
               type="password"
-              defaultValue={adminToken}
               placeholder="Tempel ADMIN_TOKEN untuk moderasi terlindungi"
             />
           </label>
           <button type="submit" className="button button--primary">
-            Simpan token
+            Login admin
           </button>
         </form>
         {state.loading ? (
@@ -126,10 +153,22 @@ export function AdminPage() {
         ) : (
           <>
             <div className="admin-metrics">
-              <MetricTile label="Tempat disetujui" value={String(state.stats?.total_spots ?? 0)} />
-              <MetricTile label="Menunggu tinjauan" value={String(state.stats?.pending_submissions ?? 0)} />
-              <MetricTile label="Ditolak" value={String(state.stats?.rejected_submissions ?? 0)} />
-              <MetricTile label="Kontributor aktif" value={String(state.stats?.active_contributors ?? 0)} />
+              <MetricTile
+                label="Tempat disetujui"
+                value={String(state.stats?.total_spots ?? 0)}
+              />
+              <MetricTile
+                label="Menunggu tinjauan"
+                value={String(state.stats?.pending_submissions ?? 0)}
+              />
+              <MetricTile
+                label="Ditolak"
+                value={String(state.stats?.rejected_submissions ?? 0)}
+              />
+              <MetricTile
+                label="Kontributor aktif"
+                value={String(state.stats?.active_contributors ?? 0)}
+              />
             </div>
 
             <div className="admin-queue">
@@ -141,23 +180,36 @@ export function AdminPage() {
                         <h3>{submission.name}</h3>
                         <p>{submission.address}</p>
                       </div>
-                      <StatusPill tone={submission.status === 'pending' ? 'warning' : 'danger'}>
+                      <StatusPill
+                        tone={
+                          submission.status === "pending" ? "warning" : "danger"
+                        }
+                      >
                         {localizeStatus(submission.status)}
                       </StatusPill>
                     </div>
                     <div className="submission-card__meta">
-                      <StatusPill tone="muted">{localizeLabel(submission.category)}</StatusPill>
-                      <StatusPill tone="muted">{submission.submitter_name || 'Pengirim tidak diketahui'}</StatusPill>
+                      <StatusPill tone="muted">
+                        {localizeLabel(submission.category)}
+                      </StatusPill>
+                      <StatusPill tone="muted">
+                        {submission.submitter_name ||
+                          "Pengirim tidak diketahui"}
+                      </StatusPill>
                       <StatusPill tone="info">
                         {submission.wifi_speed_mbps
                           ? `${formatMbps(submission.wifi_speed_mbps)} Mbps`
-                          : 'Kecepatan menunggu'}
+                          : "Kecepatan menunggu"}
                       </StatusPill>
                     </div>
-                    <p>{submission.access_notes || 'Belum ada catatan akses.'}</p>
+                    <p>
+                      {submission.access_notes || "Belum ada catatan akses."}
+                    </p>
                     <small>
-                      Dibuat {formatDate(submission.created_at)}. Sumber password:{' '}
-                      {localizeLabel(submission.password_source) || 'belum diisi'}
+                      Dibuat {formatDate(submission.created_at)}. Sumber
+                      password:{" "}
+                      {localizeLabel(submission.password_source) ||
+                        "belum diisi"}
                     </small>
                   </div>
                   <div className="submission-card__actions">
@@ -165,7 +217,7 @@ export function AdminPage() {
                       type="button"
                       className="button button--primary"
                       disabled={busyId === submission.id}
-                      onClick={() => moderate(submission.id, 'approved')}
+                      onClick={() => moderate(submission.id, "approved")}
                     >
                       Setujui
                     </button>
@@ -173,7 +225,7 @@ export function AdminPage() {
                       type="button"
                       className="button button--ghost"
                       disabled={busyId === submission.id}
-                      onClick={() => moderate(submission.id, 'rejected')}
+                      onClick={() => moderate(submission.id, "rejected")}
                     >
                       Tolak
                     </button>
@@ -185,5 +237,5 @@ export function AdminPage() {
         )}
       </section>
     </main>
-  )
+  );
 }

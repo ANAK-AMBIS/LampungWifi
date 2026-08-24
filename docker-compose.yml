@@ -1,0 +1,36 @@
+services:
+  app:
+    build: .
+    container_name: balamwifi
+    ports:
+      - "3000:3000"
+      - "8787:8787"
+    environment:
+      - NODE_ENV=production
+      - PORT=8787
+      - API_SERVER_URL=http://localhost:8787
+      - ADMIN_TOKEN=${ADMIN_TOKEN:-}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
+      - NEXT_PUBLIC_GOOGLE_CLIENT_ID=${NEXT_PUBLIC_GOOGLE_CLIENT_ID:-}
+      - DATABASE_URL=${DATABASE_URL:-}
+      - CORS_ORIGIN=${CORS_ORIGIN:-}
+    restart: unless-stopped
+
+  db:
+    image: postgres:17-alpine
+    container_name: balamwifi-db
+    environment:
+      POSTGRES_USER: balamwifi
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-balamwifi}
+      POSTGRES_DB: balamwifi
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./server/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+    profiles:
+      - full
+    restart: unless-stopped
+
+volumes:
+  pgdata:

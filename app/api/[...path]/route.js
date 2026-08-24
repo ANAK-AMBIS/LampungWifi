@@ -1,79 +1,83 @@
-import { revalidateTag } from 'next/cache'
+import { revalidateTag } from "next/cache";
 
-const API_SERVER_URL = process.env.API_SERVER_URL ?? 'http://localhost:8787'
+const API_SERVER_URL = process.env.API_SERVER_URL ?? "http://localhost:8787";
 
 async function proxy(request, { params }) {
-  const { path } = await params
-  const sourceUrl = new URL(request.url)
-  const targetUrl = new URL(`/api/${path.join('/')}${sourceUrl.search}`, API_SERVER_URL)
-  const headers = new Headers(request.headers)
-  const hasBody = request.method !== 'GET' && request.method !== 'HEAD'
-  const body = hasBody ? await request.text() : undefined
+  const { path } = await params;
+  const sourceUrl = new URL(request.url);
+  const targetUrl = new URL(
+    `/api/${path.join("/")}${sourceUrl.search}`,
+    API_SERVER_URL,
+  );
+  const headers = new Headers(request.headers);
+  const hasBody = request.method !== "GET" && request.method !== "HEAD";
+  const body = hasBody ? await request.text() : undefined;
 
-  headers.delete('host')
+  headers.delete("host");
 
   const response = await fetch(targetUrl, {
     method: request.method,
     headers,
     body,
-    cache: 'no-store',
-  })
+    cache: "no-store",
+    redirect: "manual",
+  });
 
   if (hasBody && response.ok) {
-    revalidateApiTags(path, body)
+    revalidateApiTags(path, body);
   }
 
-  const responseHeaders = new Headers(response.headers)
-  responseHeaders.delete('content-encoding')
-  responseHeaders.delete('content-length')
+  const responseHeaders = new Headers(response.headers);
+  responseHeaders.delete("content-encoding");
+  responseHeaders.delete("content-length");
 
   return new Response(response.body, {
     status: response.status,
     statusText: response.statusText,
     headers: responseHeaders,
-  })
+  });
 }
 
 function revalidateApiTags(path, body) {
-  const [resource, scope, id] = path
-  const tags = new Set()
+  const [resource, scope, id] = path;
+  const tags = new Set();
 
-  if (resource === 'places') {
-    tags.add('places')
+  if (resource === "places") {
+    tags.add("places");
   }
 
-  if (resource === 'reviews') {
-    tags.add('places')
-    const placeId = readJsonNumber(body, 'placeId')
+  if (resource === "reviews") {
+    tags.add("places");
+    const placeId = readJsonNumber(body, "placeId");
     if (placeId) {
-      tags.add(`place:${placeId}`)
+      tags.add(`place:${placeId}`);
     }
   }
 
-  if (resource === 'admin' && scope === 'submissions') {
-    tags.add('places')
+  if (resource === "admin" && scope === "submissions") {
+    tags.add("places");
     if (id) {
-      tags.add(`place:${id}`)
+      tags.add(`place:${id}`);
     }
   }
 
   for (const tag of tags) {
-    revalidateTag(tag, 'max')
+    revalidateTag(tag, "max");
   }
 }
 
 function readJsonNumber(body, key) {
   try {
-    const value = JSON.parse(body || '{}')?.[key]
-    const parsed = Number(value)
-    return Number.isFinite(parsed) && parsed > 0 ? parsed : null
+    const value = JSON.parse(body || "{}")?.[key];
+    const parsed = Number(value);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
   } catch {
-    return null
+    return null;
   }
 }
 
-export const GET = proxy
-export const POST = proxy
-export const PATCH = proxy
-export const PUT = proxy
-export const DELETE = proxy
+export const GET = proxy;
+export const POST = proxy;
+export const PATCH = proxy;
+export const PUT = proxy;
+export const DELETE = proxy;

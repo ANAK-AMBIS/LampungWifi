@@ -1,6 +1,0 @@
-export { HomePage } from './views/HomePage.jsx'
-export { RulesPage } from './views/RulesPage.jsx'
-export { PlacesPage } from './views/PlacesPage.jsx'
-export { PlaceDetailPage } from './views/PlaceDetailPage.jsx'
-export { SubmitPage } from './views/SubmitPage.jsx'
-export { AdminPage } from './views/AdminPage.jsx'

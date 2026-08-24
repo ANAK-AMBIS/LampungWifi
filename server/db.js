@@ -1,145 +1,153 @@
-import { readFileSync } from 'node:fs'
-import path from 'node:path'
-import { fileURLToPath } from 'node:url'
-import pg from 'pg'
-import { seedPlaces, seedReviews, seedUsers } from './seedData.js'
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import pg from "pg";
+import { seedPlaces, seedReviews, seedUsers } from "./seedData.js";
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
-const schemaSql = readFileSync(path.join(__dirname, 'schema.sql'), 'utf8')
-const { Pool } = pg
+const { Pool } = pg;
 
-const searchableFields = ['name', 'address', 'district', 'category']
+const searchableFields = ["name", "address", "district", "category"];
 
 function sanitizeText(value) {
-  if (typeof value !== 'string') {
-    return null
+  if (typeof value !== "string") {
+    return null;
   }
 
-  const sanitized = value.trim().replace(/\s+/g, ' ')
-  return sanitized.length ? sanitized : null
+  const sanitized = value.trim().replace(/\s+/g, " ");
+  return sanitized.length ? sanitized : null;
 }
 
 function round(value) {
-  return Math.round(value * 10) / 10
+  return Math.round(value * 10) / 10;
 }
 
 function buildMetricsMap(reviewList) {
-  const grouped = new Map()
+  const grouped = new Map();
 
   for (const review of reviewList) {
-    const placeId = Number(review.place_id)
-    const existing = grouped.get(placeId) ?? { count: 0, speed: 0, comfort: 0 }
-    existing.count += 1
-    existing.speed += Number(review.rating_speed)
-    existing.comfort += Number(review.rating_comfort)
-    grouped.set(placeId, existing)
+    const placeId = Number(review.place_id);
+    const existing = grouped.get(placeId) ?? { count: 0, speed: 0, comfort: 0 };
+    existing.count += 1;
+    existing.speed += Number(review.rating_speed);
+    existing.comfort += Number(review.rating_comfort);
+    grouped.set(placeId, existing);
   }
 
-  const metrics = new Map()
+  const metrics = new Map();
   for (const [placeId, item] of grouped) {
-    const avgSpeed = item.speed / item.count
-    const avgComfort = item.comfort / item.count
+    const avgSpeed = item.speed / item.count;
+    const avgComfort = item.comfort / item.count;
     metrics.set(placeId, {
       avg_speed_rating: round(avgSpeed),
       avg_comfort_rating: round(avgComfort),
       avg_rating: round((avgSpeed + avgComfort) / 2),
       review_count: item.count,
-    })
+    });
   }
 
-  return metrics
+  return metrics;
 }
 
 function metricsFor(metricsMap, placeId) {
-  return metricsMap.get(Number(placeId)) ?? {
-    avg_rating: 0,
-    avg_speed_rating: 0,
-    avg_comfort_rating: 0,
-    review_count: 0,
-  }
+  return (
+    metricsMap.get(Number(placeId)) ?? {
+      avg_rating: 0,
+      avg_speed_rating: 0,
+      avg_comfort_rating: 0,
+      review_count: 0,
+    }
+  );
 }
 
 function withMetricsMap(place, metricsMap) {
   return {
     ...place,
     ...metricsFor(metricsMap, place.id),
-  }
+  };
 }
 
 function sortFeatured(left, right) {
   if (right.avg_rating !== left.avg_rating) {
-    return right.avg_rating - left.avg_rating
+    return right.avg_rating - left.avg_rating;
   }
 
   if ((right.wifi_speed_mbps ?? 0) !== (left.wifi_speed_mbps ?? 0)) {
-    return (right.wifi_speed_mbps ?? 0) - (left.wifi_speed_mbps ?? 0)
+    return (right.wifi_speed_mbps ?? 0) - (left.wifi_speed_mbps ?? 0);
   }
 
-  return right.review_count - left.review_count
+  return right.review_count - left.review_count;
 }
 
 function applyFilters(list, filters) {
-  const query = sanitizeText(filters.q)?.toLowerCase()
-  const category = sanitizeText(filters.category)
-  const accessType = sanitizeText(filters.accessType)
-  const speed = sanitizeText(filters.speed)
-  const requireOutlets = Boolean(filters.outlets)
-  const requireOpen24 = Boolean(filters.open24)
-  const requireWifi = filters.wifiAvailable !== false
-  const status = sanitizeText(filters.status) ?? 'approved'
+  const query = sanitizeText(filters.q)?.toLowerCase();
+  const category = sanitizeText(filters.category);
+  const accessType = sanitizeText(filters.accessType);
+  const speed = sanitizeText(filters.speed);
+  const requireOutlets = Boolean(filters.outlets);
+  const requireOpen24 = Boolean(filters.open24);
+  const requireWifi = filters.wifiAvailable !== false;
+  const status = sanitizeText(filters.status) ?? "approved";
 
   return list.filter((place) => {
-    if (status !== 'all' && place.status !== status) {
-      return false
+    if (status !== "all" && place.status !== status) {
+      return false;
     }
 
     if (query) {
       const haystack = searchableFields
         .map((field) => place[field])
         .filter(Boolean)
-        .join(' ')
-        .toLowerCase()
+        .join(" ")
+        .toLowerCase();
 
       if (!haystack.includes(query)) {
-        return false
+        return false;
       }
     }
 
-    if (category && category !== 'All' && category !== 'all' && place.category !== category) {
-      return false
+    if (
+      category &&
+      category !== "All" &&
+      category !== "all" &&
+      place.category !== category
+    ) {
+      return false;
     }
 
-    if (accessType && accessType !== 'all' && place.wifi_access_type !== accessType) {
-      return false
+    if (
+      accessType &&
+      accessType !== "all" &&
+      place.wifi_access_type !== accessType
+    ) {
+      return false;
     }
 
     if (requireWifi && !place.wifi_available) {
-      return false
+      return false;
     }
 
-    if (speed === 'fast' && Number(place.wifi_speed_mbps ?? 0) < 50) {
-      return false
+    if (speed === "fast" && Number(place.wifi_speed_mbps ?? 0) < 50) {
+      return false;
     }
 
-    if (speed === 'ultra' && Number(place.wifi_speed_mbps ?? 0) < 100) {
-      return false
+    if (speed === "ultra" && Number(place.wifi_speed_mbps ?? 0) < 100) {
+      return false;
     }
 
-    if (speed === 'steady' && Number(place.wifi_speed_mbps ?? 0) < 20) {
-      return false
+    if (speed === "steady" && Number(place.wifi_speed_mbps ?? 0) < 20) {
+      return false;
     }
 
     if (requireOutlets && !place.has_power_outlets) {
-      return false
+      return false;
     }
 
     if (requireOpen24 && !place.open_24_hours) {
-      return false
+      return false;
     }
 
-    return true
-  })
+    return true;
+  });
 }
 
 function normalizePlacePayload(payload) {
@@ -164,11 +172,11 @@ function normalizePlacePayload(payload) {
     ambience_label: sanitizeText(payload.ambienceLabel),
     map_context: sanitizeText(payload.mapContext),
     operating_hours: sanitizeText(payload.operatingHours),
-    image_tone: sanitizeText(payload.imageTone) ?? 'lagoon',
+    image_tone: sanitizeText(payload.imageTone) ?? "lagoon",
     image_url: sanitizeText(payload.imageUrl),
     submitter_name: sanitizeText(payload.submitterName),
     submitter_email: sanitizeText(payload.submitterEmail),
-  }
+  };
 }
 
 function normalizeReviewPayload(payload) {
@@ -181,96 +189,116 @@ function normalizeReviewPayload(payload) {
     rating_comfort: Number(payload.ratingComfort),
     image_url: sanitizeText(payload.imageUrl),
     comment: sanitizeText(payload.comment),
-  }
+  };
 }
 
 function createMemoryStore() {
-  const places = structuredClone(seedPlaces)
-  const reviews = structuredClone(seedReviews)
-  const users = structuredClone(seedUsers)
-  let nextPlaceId = Math.max(...places.map((item) => item.id)) + 1
-  let nextReviewId = Math.max(...reviews.map((item) => item.id)) + 1
+  const places = structuredClone(seedPlaces);
+  const reviews = structuredClone(seedReviews);
+  const users = structuredClone(seedUsers);
+  let nextPlaceId = Math.max(...places.map((item) => item.id)) + 1;
+  let nextReviewId = Math.max(...reviews.map((item) => item.id)) + 1;
 
   return {
-    mode: 'memory',
+    mode: "memory",
     async initialize() {},
     async listPlaces(filters = {}) {
-      const metricsMap = buildMetricsMap(reviews)
-      const filtered = applyFilters(places.map((place) => withMetricsMap(place, metricsMap)), filters)
-        .sort(sortFeatured)
+      const metricsMap = buildMetricsMap(reviews);
+      const filtered = applyFilters(
+        places.map((place) => withMetricsMap(place, metricsMap)),
+        filters,
+      ).sort(sortFeatured);
 
-      const limit = Number(filters.limit ?? filtered.length)
-      return filtered.slice(0, limit)
+      const total = filtered.length;
+      const limit = Number(filters.limit ?? 100);
+      const offset = Number(filters.offset ?? 0);
+      return {
+        places: filtered.slice(offset, offset + limit),
+        total,
+      };
     },
     async getPlaceById(placeId) {
-      const place = places.find((item) => Number(item.id) === Number(placeId))
-      const metricsMap = buildMetricsMap(reviews)
+      const place = places.find((item) => Number(item.id) === Number(placeId));
+      const metricsMap = buildMetricsMap(reviews);
 
       if (!place) {
-        return null
+        return null;
       }
 
       const placeReviews = reviews
         .filter((item) => Number(item.place_id) === Number(placeId))
-        .sort((left, right) => new Date(right.created_at) - new Date(left.created_at))
+        .sort(
+          (left, right) =>
+            new Date(right.created_at) - new Date(left.created_at),
+        );
 
       return {
         ...withMetricsMap(place, metricsMap),
         reviews: placeReviews,
         related_places: places
-          .filter((item) => item.status === 'approved' && item.id !== place.id)
+          .filter((item) => item.status === "approved" && item.id !== place.id)
           .map((item) => withMetricsMap(item, metricsMap))
           .sort(sortFeatured)
           .slice(0, 3),
-      }
+      };
     },
     async createPlaceSubmission(payload) {
-      const normalized = normalizePlacePayload(payload)
-      const timestamp = new Date().toISOString()
+      const normalized = normalizePlacePayload(payload);
+      const timestamp = new Date().toISOString();
       const record = {
         id: nextPlaceId,
         ...normalized,
-        status: 'pending',
+        status: "pending",
         created_at: timestamp,
         updated_at: timestamp,
-      }
+      };
 
-      nextPlaceId += 1
-      places.unshift(record)
+      nextPlaceId += 1;
+      places.unshift(record);
 
-      return withMetricsMap(record, buildMetricsMap(reviews))
+      return withMetricsMap(record, buildMetricsMap(reviews));
     },
     async createReview(payload) {
-      const normalized = normalizeReviewPayload(payload)
-      const place = places.find((item) => Number(item.id) === normalized.place_id)
+      const normalized = normalizeReviewPayload(payload);
+      const place = places.find(
+        (item) => Number(item.id) === normalized.place_id,
+      );
 
-      if (!place || place.status !== 'approved') {
-        throw new Error('Review can only be added to approved places')
+      if (!place || place.status !== "approved") {
+        throw new Error("Review can only be added to approved places");
       }
 
       const record = {
         id: nextReviewId,
         ...normalized,
         created_at: new Date().toISOString(),
-      }
+      };
 
-      nextReviewId += 1
-      reviews.unshift(record)
+      nextReviewId += 1;
+      reviews.unshift(record);
 
-      return record
+      return record;
     },
     async listAdminSubmissions() {
-      const metricsMap = buildMetricsMap(reviews)
+      const metricsMap = buildMetricsMap(reviews);
       const submissions = places
-        .filter((item) => item.status !== 'approved')
+        .filter((item) => item.status !== "approved")
         .map((item) => withMetricsMap(item, metricsMap))
-        .sort((left, right) => new Date(right.created_at) - new Date(left.created_at))
+        .sort(
+          (left, right) =>
+            new Date(right.created_at) - new Date(left.created_at),
+        );
 
       return {
         stats: {
-          total_spots: places.filter((item) => item.status === 'approved').length,
-          pending_submissions: places.filter((item) => item.status === 'pending').length,
-          rejected_submissions: places.filter((item) => item.status === 'rejected').length,
+          total_spots: places.filter((item) => item.status === "approved")
+            .length,
+          pending_submissions: places.filter(
+            (item) => item.status === "pending",
+          ).length,
+          rejected_submissions: places.filter(
+            (item) => item.status === "rejected",
+          ).length,
           community_reviews: reviews.length,
           active_contributors: new Set([
             ...users.map((item) => item.email),
@@ -279,79 +307,91 @@ function createMemoryStore() {
           ]).size,
         },
         submissions,
-      }
+      };
     },
     async updateSubmissionStatus(placeId, status) {
-      const place = places.find((item) => Number(item.id) === Number(placeId))
+      const place = places.find((item) => Number(item.id) === Number(placeId));
 
       if (!place) {
-        return null
+        return null;
       }
 
-      place.status = status
-      place.updated_at = new Date().toISOString()
+      place.status = status;
+      place.updated_at = new Date().toISOString();
 
-      return withMetricsMap(place, buildMetricsMap(reviews))
+      return withMetricsMap(place, buildMetricsMap(reviews));
     },
-  }
+    async listUserSubmissions(email) {
+      return places
+        .filter((p) => p.submitter_email === email)
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    },
+    async listUserReviews(email) {
+      return reviews
+        .filter((r) => r.author_email === email)
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    },
+  };
 }
 
-function buildWhereClause(filters, params, alias = 'p') {
-  const where = []
-  const query = sanitizeText(filters.q)
-  const category = sanitizeText(filters.category)
-  const accessType = sanitizeText(filters.accessType)
-  const status = sanitizeText(filters.status) ?? 'approved'
+function buildWhereClause(filters, params, alias = "p") {
+  const where = [];
+  const query = sanitizeText(filters.q);
+  const category = sanitizeText(filters.category);
+  const accessType = sanitizeText(filters.accessType);
+  const status = sanitizeText(filters.status) ?? "approved";
 
-  if (status !== 'all') {
-    params.push(status)
-    where.push(`${alias}.status = $${params.length}`)
+  if (status !== "all") {
+    params.push(status);
+    where.push(`${alias}.status = $${params.length}`);
   }
 
   if (query) {
-    params.push(query)
-    const slot = `$${params.length}`
-    where.push(`to_tsvector('simple', COALESCE(${alias}.name, '') || ' ' || COALESCE(${alias}.address, '') || ' ' || COALESCE(${alias}.district, '') || ' ' || COALESCE(${alias}.category, '')) @@ plainto_tsquery('simple', ${slot})`)
+    params.push(query);
+    const slot = `$${params.length}`;
+    where.push(
+      `to_tsvector('simple', COALESCE(${alias}.name, '') || ' ' || COALESCE(${alias}.address, '') || ' ' || COALESCE(${alias}.district, '') || ' ' || COALESCE(${alias}.category, '')) @@ plainto_tsquery('simple', ${slot})`,
+    );
   }
 
-  if (category && category !== 'all' && category !== 'All') {
-    params.push(category)
-    where.push(`${alias}.category = $${params.length}`)
+  if (category && category !== "all" && category !== "All") {
+    params.push(category);
+    where.push(`${alias}.category = $${params.length}`);
   }
 
-  if (accessType && accessType !== 'all') {
-    params.push(accessType)
-    where.push(`${alias}.wifi_access_type = $${params.length}`)
+  if (accessType && accessType !== "all") {
+    params.push(accessType);
+    where.push(`${alias}.wifi_access_type = $${params.length}`);
   }
 
   if (filters.wifiAvailable !== false) {
-    where.push(`${alias}.wifi_available = TRUE`)
+    where.push(`${alias}.wifi_available = TRUE`);
   }
 
-  if (filters.speed === 'fast') {
-    params.push(50)
-    where.push(`${alias}.wifi_speed_mbps >= $${params.length}`)
+  if (filters.speed === "fast") {
+    params.push(50);
+    where.push(`${alias}.wifi_speed_mbps >= $${params.length}`);
   }
 
-  if (filters.speed === 'ultra') {
-    params.push(100)
-    where.push(`${alias}.wifi_speed_mbps >= $${params.length}`)
+  if (filters.speed === "ultra") {
+    params.push(100);
+    where.push(`${alias}.wifi_speed_mbps >= $${params.length}`);
   }
 
-  if (filters.speed === 'steady') {
-    params.push(20)
-    where.push(`${alias}.wifi_speed_mbps >= $${params.length}`)
+  if (filters.speed === "steady") {
+    params.push(20);
+    where.push(`${alias}.wifi_speed_mbps >= $${params.length}`);
   }
 
   if (filters.outlets) {
-    where.push(`${alias}.has_power_outlets = TRUE`)
+    where.push(`${alias}.has_power_outlets = TRUE`);
   }
 
   if (filters.open24) {
-    where.push(`${alias}.open_24_hours = TRUE`)
+    where.push(`${alias}.open_24_hours = TRUE`);
   }
 
-  return where.length ? `WHERE ${where.join(' AND ')}` : ''
+  return where.length ? `WHERE ${where.join(" AND ")}` : "";
 }
 
 function mapRow(row) {
@@ -361,14 +401,17 @@ function mapRow(row) {
     has_power_outlets: row.has_power_outlets,
     open_24_hours: row.open_24_hours,
     quiet_zone: row.quiet_zone,
-    wifi_speed_mbps: row.wifi_speed_mbps === null ? null : Number(row.wifi_speed_mbps),
+    wifi_speed_mbps:
+      row.wifi_speed_mbps === null ? null : Number(row.wifi_speed_mbps),
     upload_mbps: row.upload_mbps === null ? null : Number(row.upload_mbps),
     ping_ms: row.ping_ms === null ? null : Number(row.ping_ms),
     avg_rating: row.avg_rating === null ? 0 : Number(row.avg_rating),
-    avg_speed_rating: row.avg_speed_rating === null ? 0 : Number(row.avg_speed_rating),
-    avg_comfort_rating: row.avg_comfort_rating === null ? 0 : Number(row.avg_comfort_rating),
+    avg_speed_rating:
+      row.avg_speed_rating === null ? 0 : Number(row.avg_speed_rating),
+    avg_comfort_rating:
+      row.avg_comfort_rating === null ? 0 : Number(row.avg_comfort_rating),
     review_count: row.review_count === null ? 0 : Number(row.review_count),
-  }
+  };
 }
 
 const placeListColumns = `
@@ -386,15 +429,18 @@ const placeListColumns = `
   p.status,
   p.created_at,
   p.updated_at
-`
+`;
 
 function createPostgresStore() {
-  const connectionString = process.env.DATABASE_URL
-  const requiresSsl = !/(localhost|127\.0\.0\.1)/i.test(connectionString)
+  const connectionString = process.env.DATABASE_URL;
+  const requiresSsl = !/(localhost|127\.0\.0\.1)/i.test(connectionString);
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = path.dirname(__filename);
+  const schemaSql = readFileSync(path.join(__dirname, "schema.sql"), "utf8");
   const pool = new Pool({
     connectionString,
     ssl: requiresSsl ? { rejectUnauthorized: false } : false,
-  })
+  });
 
   async function refreshPlaceMetrics(placeId) {
     await pool.query(
@@ -427,12 +473,13 @@ function createPostgresStore() {
           updated_at = NOW()
       `,
       [placeId],
-    )
+    );
   }
 
-  async function aggregatePlace(whereSql, params, limit) {
-    const boundedParams = [...params]
-    boundedParams.push(limit)
+  async function aggregatePlace(whereSql, params, limit, offset = 0) {
+    const boundedParams = [...params];
+    boundedParams.push(limit);
+    boundedParams.push(offset);
 
     const result = await pool.query(
       `
@@ -446,28 +493,41 @@ function createPostgresStore() {
         LEFT JOIN place_metrics m ON m.place_id = p.id
         ${whereSql}
         ORDER BY COALESCE(m.avg_rating, 0) DESC, p.wifi_speed_mbps DESC NULLS LAST, COALESCE(m.review_count, 0) DESC, p.created_at DESC
-        LIMIT $${boundedParams.length}
+        LIMIT $${boundedParams.length - 1} OFFSET $${boundedParams.length}
       `,
       boundedParams,
-    )
+    );
 
-    return result.rows.map(mapRow)
+    return result.rows.map(mapRow);
   }
 
   return {
-    mode: 'postgres',
+    mode: "postgres",
     async initialize() {
-      if (process.env.DB_SCHEMA_SYNC === 'false') {
-        return
+      if (process.env.DB_SCHEMA_SYNC === "false") {
+        return;
       }
 
-      await pool.query(schemaSql)
+      await pool.query(schemaSql);
     },
     async listPlaces(filters = {}) {
-      const params = []
-      const whereSql = buildWhereClause(filters, params)
-      const limit = Number(filters.limit ?? 100)
-      return aggregatePlace(whereSql, params, limit)
+      const params = [];
+      const whereSql = buildWhereClause(filters, params);
+      const limit = Number(filters.limit ?? 100);
+      const offset = Number(filters.offset ?? 0);
+
+      const [placesResult, countResult] = await Promise.all([
+        aggregatePlace(whereSql, params, limit, offset),
+        pool.query(
+          `SELECT COUNT(*)::int AS total FROM places p ${whereSql}`,
+          params,
+        ),
+      ]);
+
+      return {
+        places: placesResult,
+        total: countResult.rows[0]?.total ?? 0,
+      };
     },
     async getPlaceById(placeId) {
       const placeResult = await pool.query(
@@ -483,10 +543,10 @@ function createPostgresStore() {
           WHERE p.id = $1
         `,
         [placeId],
-      )
+      );
 
       if (!placeResult.rows.length) {
-        return null
+        return null;
       }
 
       const [reviewsResult, relatedResult] = await Promise.all([
@@ -515,16 +575,16 @@ function createPostgresStore() {
           `,
           [placeId],
         ),
-      ])
+      ]);
 
       return {
         ...mapRow(placeResult.rows[0]),
         reviews: reviewsResult.rows,
         related_places: relatedResult.rows.map(mapRow),
-      }
+      };
     },
     async createPlaceSubmission(payload) {
-      const normalized = normalizePlacePayload(payload)
+      const normalized = normalizePlacePayload(payload);
       const result = await pool.query(
         `
           INSERT INTO places (
@@ -569,8 +629,8 @@ function createPostgresStore() {
           normalized.submitter_name,
           normalized.submitter_email,
         ],
-      )
-      await refreshPlaceMetrics(result.rows[0].id)
+      );
+      await refreshPlaceMetrics(result.rows[0].id);
 
       return mapRow({
         ...result.rows[0],
@@ -578,14 +638,17 @@ function createPostgresStore() {
         avg_speed_rating: 0,
         avg_comfort_rating: 0,
         review_count: 0,
-      })
+      });
     },
     async createReview(payload) {
-      const normalized = normalizeReviewPayload(payload)
-      const placeCheck = await pool.query('SELECT status FROM places WHERE id = $1', [normalized.place_id])
+      const normalized = normalizeReviewPayload(payload);
+      const placeCheck = await pool.query(
+        "SELECT status FROM places WHERE id = $1",
+        [normalized.place_id],
+      );
 
-      if (!placeCheck.rows.length || placeCheck.rows[0].status !== 'approved') {
-        throw new Error('Review can only be added to approved places')
+      if (!placeCheck.rows.length || placeCheck.rows[0].status !== "approved") {
+        throw new Error("Review can only be added to approved places");
       }
 
       const result = await pool.query(
@@ -604,10 +667,10 @@ function createPostgresStore() {
           normalized.image_url,
           normalized.comment,
         ],
-      )
-      await refreshPlaceMetrics(normalized.place_id)
+      );
+      await refreshPlaceMetrics(normalized.place_id);
 
-      return result.rows[0]
+      return result.rows[0];
     },
     async listAdminSubmissions() {
       const statsResult = await pool.query(
@@ -629,7 +692,7 @@ function createPostgresStore() {
               ) contributors
             ) AS active_contributors
         `,
-      )
+      );
 
       const submissionsResult = await pool.query(
         `
@@ -644,12 +707,12 @@ function createPostgresStore() {
           WHERE p.status <> 'approved'
           ORDER BY p.created_at DESC
         `,
-      )
+      );
 
       return {
         stats: statsResult.rows[0],
         submissions: submissionsResult.rows.map(mapRow),
-      }
+      };
     },
     async updateSubmissionStatus(placeId, status) {
       const result = await pool.query(
@@ -660,12 +723,12 @@ function createPostgresStore() {
           RETURNING *
         `,
         [placeId, status],
-      )
+      );
       if (!result.rows.length) {
-        return null
+        return null;
       }
 
-      await refreshPlaceMetrics(placeId)
+      await refreshPlaceMetrics(placeId);
 
       return mapRow({
         ...result.rows[0],
@@ -673,13 +736,29 @@ function createPostgresStore() {
         avg_speed_rating: 0,
         avg_comfort_rating: 0,
         review_count: 0,
-      })
+      });
     },
-  }
+    async listUserSubmissions(email) {
+      const result = await pool.query(
+        `SELECT * FROM places WHERE submitter_email = $1 ORDER BY created_at DESC`,
+        [email],
+      );
+      return result.rows;
+    },
+    async listUserReviews(email) {
+      const result = await pool.query(
+        `SELECT * FROM reviews WHERE author_email = $1 ORDER BY created_at DESC`,
+        [email],
+      );
+      return result.rows;
+    },
+  };
 }
 
 export async function createStore() {
-  const store = process.env.DATABASE_URL ? createPostgresStore() : createMemoryStore()
-  await store.initialize()
-  return store
+  const store = process.env.DATABASE_URL
+    ? createPostgresStore()
+    : createMemoryStore();
+  await store.initialize();
+  return store;
 }

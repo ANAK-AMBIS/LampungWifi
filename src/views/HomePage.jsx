@@ -1,93 +1,44 @@
-'use client'
+"use client";
 
-import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
-import { getPlaces } from '../api'
-import { quickFilters } from '../lib/constants'
-import { InfoBanner, LoadingGrid, PlaceCard, SectionHeader } from '../components/ui'
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import {
+  BookOpen,
+  Coffee,
+  GraduationCap,
+  Monitor,
+  TreePine,
+  UtensilsCrossed,
+} from "lucide-react";
+import {
+  categoryOptions,
+  categoryLabels,
+  quickFilters,
+} from "../lib/constants";
+import {
+  InfoBanner,
+  LoadingGrid,
+  PlaceCard,
+  SectionHeader,
+} from "../components/ui";
 
-const emptyFeaturedState = {
-  loading: true,
-  error: '',
-  source: '',
-  items: [],
-}
-
-export function HomePage({ initialFeatured = emptyFeaturedState } = {}) {
-  const router = useRouter()
-  const [search, setSearch] = useState('')
-  const [featured, setFeatured] = useState(initialFeatured)
-  const visibleFeatured = search.trim() ? featured : initialFeatured
-
-  useEffect(() => {
-    const query = search.trim()
-
-    if (!query) {
-      return undefined
-    }
-
-    let active = true
-    const controller = new AbortController()
-
-    async function loadFeatured() {
-      try {
-        setFeatured((current) => ({ ...current, loading: true, error: '' }))
-        const response = await getPlaces({
-          q: query,
-          limit: 8,
-          signal: controller.signal,
-        })
-
-        if (!active) {
-          return
-        }
-
-        setFeatured({
-          loading: false,
-          error: '',
-          source: response.meta.source,
-          items: response.data,
-        })
-      } catch (error) {
-        if (error.name === 'AbortError') {
-          return
-        }
-
-        if (!active) {
-          return
-        }
-
-        setFeatured({
-          loading: false,
-          error: error.message,
-          source: '',
-          items: [],
-        })
-      }
-    }
-
-    const timer = window.setTimeout(loadFeatured, 300)
-    return () => {
-      active = false
-      controller.abort()
-      window.clearTimeout(timer)
-    }
-  }, [search])
+export function HomePage({ initialFeatured }) {
+  const router = useRouter();
+  const [search, setSearch] = useState("");
 
   function handleHeroSubmit(event) {
-    event.preventDefault()
-    const params = new URLSearchParams()
-
+    event.preventDefault();
+    const params = new URLSearchParams();
     if (search.trim()) {
-      params.set('q', search.trim())
+      params.set("q", search.trim());
     }
-
-    router.push(`/places${params.toString() ? `?${params.toString()}` : ''}`)
+    router.push(`/places${params.toString() ? `?${params.toString()}` : ""}`);
   }
 
   return (
     <main>
+      {/* 1. HERO */}
       <section className="hero-panel">
         <div className="hero-panel__backdrop" />
         <div className="hero-panel__content">
@@ -96,8 +47,9 @@ export function HomePage({ initialFeatured = emptyFeaturedState } = {}) {
             <span className="hero-title__line">Dimana Saja.</span>
           </h1>
           <p>
-            Cari kafe, perpustakaan, area kampus, dan coworking dengan catatan WiFi publik,
-            laporan kecepatan, dan ulasan komunitas.
+            Cari kafe, coworking, perpustakaan, dan area kampus dengan WiFi
+            publik di Bandar Lampung — lengkap dengan laporan kecepatan dan
+            ulasan komunitas.
           </p>
 
           <form className="hero-search" onSubmit={handleHeroSubmit}>
@@ -127,13 +79,37 @@ export function HomePage({ initialFeatured = emptyFeaturedState } = {}) {
               </Link>
             ))}
           </div>
-
         </div>
       </section>
 
+      {/* 2. KATEGORI */}
       <section className="section">
         <SectionHeader
-          title="Tempat ramah WiFi pilihan"
+          title="Jelajahi berdasarkan kategori"
+          description="Temukan tempat WiFi publik yang sesuai dengan kebutuhan kerja atau istirahat."
+        />
+        <div className="category-grid">
+          {categoryOptions.map((category) => (
+            <Link
+              key={category}
+              href={`/places?category=${encodeURIComponent(category)}`}
+              className="category-card"
+            >
+              <span className="category-card__icon">
+                {categoryIcon(category)}
+              </span>
+              <span className="category-card__label">
+                {categoryLabels[category] || category}
+              </span>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      {/* 3. REKOMENDASI */}
+      <section className="section">
+        <SectionHeader
+          title="Rekomendasi minggu ini"
           description="Dipilih dari rating, kecepatan, dan jumlah ulasan supaya kunjungan pertama tidak terasa acak."
           action={
             <Link href="/places" className="button button--ghost button--small">
@@ -141,18 +117,51 @@ export function HomePage({ initialFeatured = emptyFeaturedState } = {}) {
             </Link>
           }
         />
-        {visibleFeatured.error ? <InfoBanner tone="danger">{visibleFeatured.error}</InfoBanner> : null}
-        {visibleFeatured.loading ? (
+        {initialFeatured?.error ? (
+          <InfoBanner tone="danger">{initialFeatured.error}</InfoBanner>
+        ) : null}
+        {initialFeatured?.loading ? (
           <LoadingGrid />
         ) : (
           <div className="place-grid">
-            {visibleFeatured.items.map((place) => (
+            {initialFeatured?.items?.map((place) => (
               <PlaceCard key={place.id} place={place} />
             ))}
           </div>
         )}
       </section>
 
+      {/* 4. KONTRIBUSI */}
+      <section className="contribute-banner">
+        <div>
+          <h2>Bantu komunitas Bandar Lampung</h2>
+          <p>
+            Punya info tempat WiFi publik yang valid? Kirim tempat baru atau
+            tambah ulasan supaya direktori tetap akurat.
+          </p>
+        </div>
+        <div className="contribute-banner__actions">
+          <Link href="/submit" className="button button--primary">
+            Tambah tempat
+          </Link>
+          <Link href="/rules" className="button button--ghost">
+            Baca aturan
+          </Link>
+        </div>
+      </section>
     </main>
-  )
+  );
+}
+
+function categoryIcon(category) {
+  const size = 28;
+  const icons = {
+    "Cafe / Coffee Shop": <Coffee size={size} />,
+    "Coworking Space": <Monitor size={size} />,
+    Library: <BookOpen size={size} />,
+    "Campus Lounge": <GraduationCap size={size} />,
+    Restaurant: <UtensilsCrossed size={size} />,
+    "Rest Area": <TreePine size={size} />,
+  };
+  return icons[category] || <Monitor size={size} />;
 }

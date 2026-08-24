@@ -1,25 +1,24 @@
-import { readFileSync } from 'node:fs'
-import path from 'node:path'
-import { fileURLToPath } from 'node:url'
-import dotenv from 'dotenv'
-import pg from 'pg'
-import { seedPlaces, seedReviews, seedUsers } from './seedData.js'
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import dotenv from "dotenv";
+import pg from "pg";
+import { seedPlaces, seedReviews, seedUsers } from "./seedData.js";
 
-dotenv.config()
+dotenv.config();
 
-const { Pool } = pg
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
-const schemaSql = readFileSync(path.join(__dirname, 'schema.sql'), 'utf8')
+const { Pool } = pg;
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 if (!process.env.DATABASE_URL) {
-  throw new Error('DATABASE_URL missing. Add it to .env before seeding.')
+  throw new Error("DATABASE_URL missing. Add it to .env before seeding.");
 }
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
-})
+});
 
 async function seedUsersTable(client) {
   for (const user of seedUsers) {
@@ -33,7 +32,7 @@ async function seedUsersTable(client) {
           role = EXCLUDED.role
       `,
       [user.id, user.name, user.email, user.role],
-    )
+    );
   }
 }
 
@@ -87,7 +86,7 @@ async function seedPlacesTable(client) {
         place.created_at,
         place.updated_at,
       ],
-    )
+    );
   }
 }
 
@@ -105,14 +104,14 @@ async function seedReviewsTable(client) {
         review.id,
         review.place_id,
         review.author_name,
-        review.review_title ?? 'Ulasan pengunjung',
+        review.review_title ?? "Ulasan pengunjung",
         review.rating_speed,
         review.rating_comfort,
         review.image_url ?? null,
         review.comment,
         review.created_at,
       ],
-    )
+    );
   }
 }
 
@@ -121,7 +120,7 @@ async function syncSequences(client) {
     SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM users), 1), true);
     SELECT setval('places_id_seq', COALESCE((SELECT MAX(id) FROM places), 1), true);
     SELECT setval('reviews_id_seq', COALESCE((SELECT MAX(id) FROM reviews), 1), true);
-  `)
+  `);
 }
 
 async function rebuildPlaceMetrics(client) {
@@ -151,37 +150,38 @@ async function rebuildPlaceMetrics(client) {
       avg_rating = EXCLUDED.avg_rating,
       review_count = EXCLUDED.review_count,
       updated_at = NOW();
-  `)
+  `);
 }
 
 async function main() {
-  const client = await pool.connect()
+  const client = await pool.connect();
+  const schemaSql = readFileSync(path.join(__dirname, "schema.sql"), "utf8");
 
   try {
-    await client.query('BEGIN')
-    await client.query(schemaSql)
-    await seedUsersTable(client)
-    await seedPlacesTable(client)
-    await seedReviewsTable(client)
-    await syncSequences(client)
-    await rebuildPlaceMetrics(client)
+    await client.query("BEGIN");
+    await client.query(schemaSql);
+    await seedUsersTable(client);
+    await seedPlacesTable(client);
+    await seedReviewsTable(client);
+    await syncSequences(client);
+    await rebuildPlaceMetrics(client);
 
     const summary = await client.query(`
       SELECT
         (SELECT COUNT(*)::int FROM users) AS users_count,
         (SELECT COUNT(*)::int FROM places) AS places_count,
         (SELECT COUNT(*)::int FROM reviews) AS reviews_count
-    `)
+    `);
 
-    await client.query('COMMIT')
-    console.log('Seed complete:', summary.rows[0])
+    await client.query("COMMIT");
+    console.log("Seed complete:", summary.rows[0]);
   } catch (error) {
-    await client.query('ROLLBACK')
-    throw error
+    await client.query("ROLLBACK");
+    throw error;
   } finally {
-    client.release()
-    await pool.end()
+    client.release();
+    await pool.end();
   }
 }
 
-await main()
+await main();

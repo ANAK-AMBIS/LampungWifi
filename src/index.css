@@ -1,43 +1,43 @@
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap");
 
 :root {
-  font-family: 'Manrope', system-ui, sans-serif;
-  line-height: 1.5;
-  font-weight: 450;
-  color: #181817;
-  background: #f4f1ea;
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+    font-family: "Manrope", system-ui, sans-serif;
+    line-height: 1.5;
+    font-weight: 450;
+    color: #181817;
+    background: #f4f1ea;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
 * {
-  box-sizing: border-box;
+    box-sizing: border-box;
 }
 
 html {
-  scroll-behavior: smooth;
+    scroll-behavior: smooth;
 }
 
 body {
-  margin: 0;
-  min-width: 320px;
-  min-height: 100vh;
-  color: #181817;
+    margin: 0;
+    min-width: 320px;
+    min-height: 100vh;
+    color: #181817;
 }
 
 body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  background:
-    linear-gradient(rgba(24, 24, 23, 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(24, 24, 23, 0.035) 1px, transparent 1px);
-  background-size: 44px 44px;
-  mask-image: linear-gradient(to bottom, black, transparent 70%);
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+        linear-gradient(rgba(24, 24, 23, 0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(24, 24, 23, 0.035) 1px, transparent 1px);
+    background-size: 44px 44px;
+    mask-image: linear-gradient(to bottom, black, transparent 70%);
 }
 
 a,
@@ -45,14 +45,10 @@ button,
 input,
 select,
 textarea {
-  font: inherit;
+    font: inherit;
 }
 
 button:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
-#root {
-  min-height: 100vh;
+    opacity: 0.55;
+    cursor: not-allowed;
 }

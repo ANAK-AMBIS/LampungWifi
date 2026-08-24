@@ -1,30 +1,36 @@
-import Link from 'next/link'
-import { ScrollOnRouteChange, TopNav, TopbarLogin, WhatsNewModal } from './AppShellClient.jsx'
+import Link from "next/link";
+import {
+  ScrollOnRouteChange,
+  TopNav,
+  TopbarLogin,
+  WhatsNewModal,
+} from "./AppShellClient";
+import { appVersion } from "../lib/version";
 
 const navItems = [
-  { href: '/places', label: 'Cari WiFi' },
-  { href: '/rules', label: 'Aturan' },
-  { href: '/submit', label: 'Tambah tempat' },
-]
+  { href: "/places", label: "Cari WiFi" },
+  { href: "/rules", label: "Aturan" },
+  { href: "/about", label: "Tentang" },
+];
 
 const footerSections = [
   {
-    title: 'Jelajahi',
+    title: "Jelajahi",
     links: [
-      { href: '/places', label: 'Cari WiFi' },
-      { href: '/rules', label: 'Aturan' },
-      { href: '/submit', label: 'Tambah tempat' },
+      { href: "/places", label: "Cari WiFi" },
+      { href: "/rules", label: "Aturan" },
+      { href: "/submit", label: "Tambah tempat" },
     ],
   },
   {
-    title: 'Lainnya',
+    title: "Lainnya",
     links: [
-      { href: '/whats-new', label: "What's New" },
-      { href: '/about', label: 'Tentang' },
-      { href: '/contact', label: 'Kontak' },
+      { href: "/whats-new", label: "What's New" },
+      { href: "/about", label: "Tentang" },
+      { href: "/contact", label: "Kontak" },
     ],
   },
-]
+];
 
 export function AppShell({ children }) {
   return (
@@ -32,8 +38,10 @@ export function AppShell({ children }) {
       <ScrollOnRouteChange />
       <header className="topbar">
         <Link href="/" className="brand">
-          <span className="brand__wordmark">LampungWiFi</span>
-          <span className="brand__tag">Direktori WiFi publik Bandar Lampung</span>
+          <span className="brand__wordmark">BalamWiFi</span>
+          <span className="brand__tag">
+            Direktori WiFi publik Bandar Lampung
+          </span>
         </Link>
         <TopNav items={navItems} />
         <TopbarLogin />
@@ -43,9 +51,12 @@ export function AppShell({ children }) {
 
       <footer className="footer">
         <div className="footer__brand">
-          <h3>LampungWiFi</h3>
-          <p>Platform tempat kerja, nongkrong, dan transit dengan WiFi publik yang jelas status legalnya.</p>
-          <small>&copy; 2026 LampungWiFi. All rights reserved.</small>
+          <h3>BalamWiFi</h3>
+          <p>
+            Platform tempat kerja, nongkrong, dan transit dengan WiFi publik
+            yang jelas status legalnya.
+          </p>
+          <small>&copy; 2026 BalamWiFi. All rights reserved.</small>
         </div>
         {footerSections.map((section) => (
           <div key={section.title}>
@@ -59,7 +70,7 @@ export function AppShell({ children }) {
         ))}
       </footer>
 
-      <WhatsNewModal version="1.0" />
+      <WhatsNewModal version={appVersion} />
     </div>
-  )
+  );
 }

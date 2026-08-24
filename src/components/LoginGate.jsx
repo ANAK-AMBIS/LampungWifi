@@ -1,4 +1,4 @@
-export function LoginGate({ user, onSignIn, onSignOut, configured }) {
+export function LoginGate({ user, signIn, signOut }) {
   if (user) {
     return (
       <div className="login-card login-card--signed-in">
@@ -7,11 +7,15 @@ export function LoginGate({ user, onSignIn, onSignOut, configured }) {
           <strong>{user.name}</strong>
           <span>{user.email}</span>
         </div>
-        <button type="button" className="button button--ghost button--small" onClick={onSignOut}>
+        <button
+          type="button"
+          className="button button--ghost button--small"
+          onClick={signOut}
+        >
           Keluar
         </button>
       </div>
-    )
+    );
   }
 
   return (
@@ -20,10 +24,13 @@ export function LoginGate({ user, onSignIn, onSignOut, configured }) {
         <strong>Login Google diperlukan</strong>
         <span>Masuk dulu untuk kirim tempat atau rating WiFi.</span>
       </div>
-      <button type="button" className="button button--primary button--small" onClick={onSignIn} disabled={!configured}>
+      <button
+        type="button"
+        className="button button--primary button--small"
+        onClick={signIn}
+      >
         Login Google
       </button>
-      {!configured ? <small>Set `NEXT_PUBLIC_GOOGLE_CLIENT_ID` untuk mengaktifkan login.</small> : null}
     </div>
-  )
+  );
 }
