@@ -160,3 +160,23 @@ CREATE TABLE IF NOT EXISTS wifi_credential_ratings (
 
 CREATE INDEX IF NOT EXISTS idx_wifi_ratings_credential ON wifi_credential_ratings(credential_id);
 
+CREATE TABLE IF NOT EXISTS speed_tests (
+  id SERIAL PRIMARY KEY,
+  place_id INTEGER NOT NULL REFERENCES places(id) ON DELETE CASCADE,
+  download_mbps NUMERIC(8, 2),
+  upload_mbps NUMERIC(8, 2),
+  ping_ms INTEGER,
+  jitter_ms NUMERIC(8, 2),
+  loaded_latency_ms INTEGER,
+  packet_loss NUMERIC(5, 4),
+  duration_ms INTEGER,
+  raw_summary JSONB,
+  tested_by_name TEXT NOT NULL,
+  tested_by_email TEXT NOT NULL,
+  ip_hash TEXT,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_speed_tests_place ON speed_tests(place_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_speed_tests_email ON speed_tests(tested_by_email);
+CREATE INDEX IF NOT EXISTS idx_speed_tests_created_at ON speed_tests(created_at DESC);
