@@ -347,7 +347,7 @@ app.use(
       : defaultCorsOrigin,
   }),
 );
-app.use(express.json({ limit: "1mb" }));
+app.use(express.json({ limit: "2mb" }));
 
 // Request logging
 app.use((request, response, next) => {

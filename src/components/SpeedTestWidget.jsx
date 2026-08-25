@@ -125,13 +125,32 @@ export function SpeedTestWidget({ placeId, initialStats, initialTests, onSaved }
           setStatus("saving");
           setMsg({ tone: "muted", text: "Menyimpan hasil ke sistem..." });
 
+          // Truncate rawSummary to avoid 1MB JSON limit / ECONNRESET
+          let safeRaw = summary;
+          try {
+            const serialized = JSON.stringify(summary);
+            if (serialized.length > 400_000) {
+              safeRaw = {
+                download: summary.download ?? null,
+                upload: summary.upload ?? null,
+                latency: summary.latency ?? null,
+                jitter: summary.jitter ?? null,
+                packetLoss: summary.packetLoss ?? null,
+                latencyPoints: Array.isArray(summary.latencyPoints) ? summary.latencyPoints.slice(0, 20) : undefined,
+              };
+              if (JSON.stringify(safeRaw).length > 400_000) safeRaw = null;
+            }
+          } catch {
+            safeRaw = null;
+          }
+
           await saveSpeedResult(placeId, {
             downloadMbps: Math.round(dlMbps * 10) / 10,
             uploadMbps: ulMbps != null ? Math.round(ulMbps * 10) / 10 : null,
             pingMs: pingMs != null ? Math.round(pingMs) : null,
             jitterMs: jitterMs != null ? Math.round(jitterMs * 10) / 10 : null,
             durationMs: durationMs != null ? Math.round(durationMs) : null,
-            rawSummary: summary,
+            rawSummary: safeRaw,
           });
 
           setStatus("finished");

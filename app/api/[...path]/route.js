@@ -2,6 +2,28 @@ import { revalidateTag } from "next/cache";
 
 const API_SERVER_URL = process.env.API_SERVER_URL ?? "http://localhost:8787";
 
+async function fetchWithRetry(targetUrl, init, retries = 1) {
+  try {
+    return await fetch(targetUrl, {
+      ...init,
+      signal: AbortSignal.timeout(15000),
+    });
+  } catch (err) {
+    const causeCode = err?.cause?.code;
+    const isRetryable =
+      causeCode === "ECONNRESET" ||
+      causeCode === "ETIMEDOUT" ||
+      err?.code === "ECONNRESET" ||
+      String(err?.message ?? "").includes("ECONNRESET") ||
+      String(err?.message ?? "").includes("fetch failed");
+    if (retries > 0 && isRetryable) {
+      await new Promise((r) => setTimeout(r, 300));
+      return fetchWithRetry(targetUrl, init, retries - 1);
+    }
+    throw err;
+  }
+}
+
 async function proxy(request, { params }) {
   const { path } = await params;
   const sourceUrl = new URL(request.url);
@@ -14,14 +36,37 @@ async function proxy(request, { params }) {
   const body = hasBody ? await request.text() : undefined;
 
   headers.delete("host");
+  headers.delete("content-length");
+  headers.delete("content-encoding");
+  headers.delete("connection");
 
-  const response = await fetch(targetUrl, {
-    method: request.method,
-    headers,
-    body,
-    cache: "no-store",
-    redirect: "manual",
-  });
+  let response;
+  try {
+    response = await fetchWithRetry(targetUrl, {
+      method: request.method,
+      headers,
+      body,
+      cache: "no-store",
+      redirect: "manual",
+    });
+  } catch (err) {
+    const cause = err?.cause ?? err;
+    console.error(
+      `[proxy] fetch failed ${request.method} ${targetUrl.toString()} -> ${API_SERVER_URL}:`,
+      cause?.code ?? err?.code ?? err?.message,
+      cause,
+    );
+    return new Response(
+      JSON.stringify({
+        error: "Upstream unavailable",
+        details: cause?.code ?? err?.message ?? "ECONNRESET",
+      }),
+      {
+        status: 502,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+  }
 
   if (hasBody && response.ok) {
     revalidateApiTags(path, body);
