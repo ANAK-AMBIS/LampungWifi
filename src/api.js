@@ -3,12 +3,14 @@ import { buildQuery } from "./lib/query";
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "/api";
 
 async function request(path, options = {}) {
+  const { headers: optHeaders, ...rest } = options;
   const response = await fetch(`${API_BASE}${path}`, {
+    credentials: "include",
+    ...rest,
     headers: {
       "Content-Type": "application/json",
-      ...(options.headers ?? {}),
+      ...(optHeaders ?? {}),
     },
-    ...options,
   });
 
   const payload = await response.json().catch(() => ({}));
