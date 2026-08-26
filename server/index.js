@@ -226,7 +226,27 @@ const speedTestSchema = z.object({
   packetLoss: z.number().min(0).max(1).nullable().optional(),
   durationMs: z.number().int().min(100).max(120000).nullable().optional(),
   rawSummary: z.any().nullable().optional(),
+  claimedSsid: z.string().min(1).max(32),
+  userLatitude: z.number().min(-90).max(90),
+  userLongitude: z.number().min(-180).max(180),
+  accuracyM: z.number().min(0).max(10000).nullable().optional(),
+  verifyToken: z.string().max(500).nullable().optional(),
 });
+
+// haversine helpers for geofence (mirrors src/lib/geo.js)
+function haversineMeters(lat1, lng1, lat2, lng2) {
+  const toRad = (d) => (d * Math.PI) / 180;
+  const R = 6371000;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+    Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+const SPEEDTEST_MAX_DISTANCE_M = Number(process.env.SPEEDTEST_MAX_DISTANCE_M ?? 150);
 
 function parseBoolean(value, defaultValue = false) {
   if (value === undefined) {
@@ -690,7 +710,63 @@ app.post("/api/places/:id/speedtest", mutationLimiter, requireGoogleUser, async 
       packetLoss: request.body.packetLoss ?? request.body.packet_loss,
       durationMs: request.body.durationMs ?? request.body.duration_ms,
       rawSummary: request.body.rawSummary ?? request.body.raw_summary ?? null,
+      claimedSsid: request.body.claimedSsid ?? request.body.claimed_ssid,
+      userLatitude: request.body.userLatitude ?? request.body.user_latitude,
+      userLongitude: request.body.userLongitude ?? request.body.user_longitude,
+      accuracyM: request.body.accuracyM ?? request.body.accuracy_m,
+      verifyToken: request.body.verifyToken ?? request.body.verify_token ?? null,
     });
+
+    // ── Geofence + SSID strict hygiene ──────────────────
+    const placeForCheck = await store.getPlaceById(placeId, { isAuthenticated: true });
+    if (!placeForCheck) {
+      response.status(404).json({ error: "Place not found" });
+      return;
+    }
+    if (placeForCheck.latitude == null || placeForCheck.longitude == null) {
+      response.status(403).json({ error: "Koordinat tempat belum diatur — speedtest diblok. Hubungi admin." });
+      return;
+    }
+    // SSID must be one of approved wifi_credentials for this place
+    let approvedSsids = [];
+    try {
+      const creds = await store.listWifiCredentials(placeId, { isAuthenticated: true, limit: 100 });
+      approvedSsids = (creds?.data ?? []).map((c) => c.ssid).filter(Boolean);
+      // fallback: legacy single wifi_ssid if no credentials table yet
+      if (!approvedSsids.length && placeForCheck.wifi_ssid) approvedSsids = [placeForCheck.wifi_ssid];
+    } catch {
+      if (placeForCheck.wifi_ssid) approvedSsids = [placeForCheck.wifi_ssid];
+    }
+    if (!approvedSsids.length) {
+      response.status(403).json({ error: "Tempat ini belum punya SSID terverifikasi — speedtest diblok. Admin perlu approve SSID dulu." });
+      return;
+    }
+    if (!parsed.claimedSsid || !approvedSsids.includes(parsed.claimedSsid)) {
+      response.status(403).json({ error: `SSID tidak terdaftar untuk lokasi ini. Pilih salah satu: ${approvedSsids.join(", ")}` });
+      return;
+    }
+    // Geofence: user must be within SPEEDTEST_MAX_DISTANCE_M
+    const distM = haversineMeters(
+      Number(placeForCheck.latitude),
+      Number(placeForCheck.longitude),
+      Number(parsed.userLatitude),
+      Number(parsed.userLongitude),
+    );
+    if (!Number.isFinite(distM)) {
+      response.status(400).json({ error: "Koordinat user tidak valid" });
+      return;
+    }
+    if (distM > SPEEDTEST_MAX_DISTANCE_M) {
+      response.status(403).json({
+        error: `Di luar jangkauan (${Math.round(distM)}m > ${SPEEDTEST_MAX_DISTANCE_M}m). Mendekat ke lokasi untuk speedtest.`,
+        distance: Math.round(distM),
+        maxDistance: SPEEDTEST_MAX_DISTANCE_M,
+      });
+      return;
+    }
+    // optional future: verifyToken from router hardware
+    // if (parsed.verifyToken) { ... HMAC verify ... }
+
     const ipRaw = request.ip ?? request.headers["x-forwarded-for"] ?? "";
     const ipHash = ipRaw ? crypto.createHash("sha256").update(String(ipRaw)).digest("hex").slice(0, 16) : null;
     const record = await store.createSpeedTest(
@@ -706,6 +782,11 @@ app.post("/api/places/:id/speedtest", mutationLimiter, requireGoogleUser, async 
         rawSummary: parsed.rawSummary,
         testedByName: request.googleUser.name,
         testedByEmail: request.googleUser.email,
+        claimedSsid: parsed.claimedSsid,
+        userLatitude: parsed.userLatitude,
+        userLongitude: parsed.userLongitude,
+        accuracyM: parsed.accuracyM ?? null,
+        distanceM: Math.round(distM),
       },
       { testerName: request.googleUser.name, testerEmail: request.googleUser.email, ipHash },
     );

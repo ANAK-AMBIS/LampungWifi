@@ -180,3 +180,12 @@ CREATE TABLE IF NOT EXISTS speed_tests (
 CREATE INDEX IF NOT EXISTS idx_speed_tests_place ON speed_tests(place_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_speed_tests_email ON speed_tests(tested_by_email);
 CREATE INDEX IF NOT EXISTS idx_speed_tests_created_at ON speed_tests(created_at DESC);
+
+-- Geofence + SSID audit (strict hygiene)
+ALTER TABLE speed_tests ADD COLUMN IF NOT EXISTS claimed_ssid TEXT;
+ALTER TABLE speed_tests ADD COLUMN IF NOT EXISTS distance_m INT;
+ALTER TABLE speed_tests ADD COLUMN IF NOT EXISTS accuracy_m INT;
+ALTER TABLE speed_tests ADD COLUMN IF NOT EXISTS verified_via TEXT DEFAULT 'claim';
+ALTER TABLE speed_tests ADD COLUMN IF NOT EXISTS user_latitude DOUBLE PRECISION;
+ALTER TABLE speed_tests ADD COLUMN IF NOT EXISTS user_longitude DOUBLE PRECISION;
+CREATE INDEX IF NOT EXISTS idx_speed_tests_claimed_ssid ON speed_tests(claimed_ssid);
