@@ -1186,8 +1186,22 @@
 .place-card__body {
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 12px;
     height: 100%;
+}
+.place-card__more {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 4px;
+    transition: color var(--transition-fast), transform var(--transition-fast);
+}
+.place-card--link:hover .place-card__more {
+    color: var(--text-primary);
+    transform: translateX(4px);
 }
 
 .place-card__heading,

@@ -32,6 +32,7 @@ export function PlaceCard({ place }) {
             <strong>{rating.toFixed(1)}</strong>
           </div>
         </div>
+        <span className="place-card__more">Selengkapnya &rarr;</span>
       </div>
     </Link>
   )
