@@ -16,8 +16,7 @@ export function SectionHeader({ eyebrow, title, description, action }) {
   )
 }
 
-export function PlaceCard({ place }) {
-  const rating = Number(place.avg_rating ?? 0);
+export function PlaceCard({ place, showBadge = true }) {
   return (
     <Link href={`/places/${place.id}`} className={`place-card place-card--link tone--${place.image_tone || 'lagoon'}`}>
       <div className="place-card__media">
@@ -26,12 +25,10 @@ export function PlaceCard({ place }) {
       <div className="place-card__body">
         <div className="place-card__heading">
           <div>
-            <h3>{place.name} {place.is_hype ? <StatusPill tone="warning">HYPE</StatusPill> : null}</h3>
-          </div>
-          <div className="rating-badge">
-            <strong>{rating.toFixed(1)}</strong>
+            <h3>{place.name} {showBadge && place.is_hype ? <StatusPill tone="warning">HYPE</StatusPill> : null}</h3>
           </div>
         </div>
+        {place.address ? <p className="place-card__address">{place.address}</p> : null}
         <span className="place-card__more">Selengkapnya &rarr;</span>
       </div>
     </Link>

@@ -70,34 +70,6 @@ export function HomePage({ initialFeatured }) {
             publik di Bandar Lampung — lengkap dengan laporan kecepatan dan
             ulasan komunitas.
           </p>
-
-          <form className="hero-search" onSubmit={handleHeroSubmit}>
-            <label className="sr-only" htmlFor="hero-search">
-              Cari tempat
-            </label>
-            <input
-              id="hero-search"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Cari tempat, kecamatan, atau suasana kerja"
-            />
-            <button type="submit" className="button button--primary">
-              Cari
-            </button>
-          </form>
-
-          <div className="hero-panel__chips">
-            {quickFilters.map((filter) => (
-              <Link
-                key={filter.label}
-                className="quick-chip"
-                href={`/places?${new URLSearchParams(filter.query).toString()}`}
-              >
-                <strong>{filter.label}</strong>
-                <span>{filter.description}</span>
-              </Link>
-            ))}
-          </div>
         </div>
       </section>
 
@@ -144,7 +116,7 @@ export function HomePage({ initialFeatured }) {
         ) : featured?.items?.length ? (
           <div className="place-grid">
             {featured?.items?.map((place) => (
-              <PlaceCard key={place.id} place={place} />
+              <PlaceCard key={place.id} place={place} showBadge={false} />
             ))}
           </div>
         ) : (

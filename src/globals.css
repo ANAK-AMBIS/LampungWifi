@@ -19,6 +19,27 @@
     box-shadow: var(--shadow-md);
     transition: var(--transition-normal);
 }
+.topbar-search {
+    width: 100%;
+    position: relative;
+}
+.topbar-search input {
+    width: 100%;
+    min-height: 38px;
+    padding: 8px 16px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-full);
+    outline: none;
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    font-size: 0.88rem;
+    transition: var(--transition-fast);
+}
+.topbar-search input:focus {
+    background: var(--bg-secondary);
+    border-color: var(--border-color-hover);
+    box-shadow: 0 0 0 2px var(--border-color-hover);
+}
 
 .brand {
     display: inline-flex;
@@ -126,7 +147,7 @@
 .whats-new-modal__card h2 {
     margin: 0;
     color: #181817;
-    font-family: "Space Grotesk", "Manrope", system-ui, sans-serif;
+    font-family: "Satoshi", "Manrope", system-ui, sans-serif;
     font-size: clamp(2rem, 6vw, 3.2rem);
     letter-spacing: -0.07em;
     line-height: 0.95;
@@ -280,12 +301,13 @@
 .hero-panel h1,
 .results-panel h1,
 .submit-copy h1,
+.section-header h1,
 .section-header h2,
 .detail-hero h1 {
     margin: 0;
     max-width: 15ch;
-    font-family: "Space Grotesk", "Manrope", system-ui, sans-serif;
-    font-weight: 700;
+    font-family: "Satoshi", "Manrope", system-ui, sans-serif;
+    font-weight: 500;
     letter-spacing: -0.07em;
     line-height: 0.92;
     color: #181817;
@@ -313,6 +335,7 @@
     overflow-wrap: anywhere;
 }
 
+.section-header h1,
 .section-header h2 {
     max-width: none;
     font-size: clamp(1.8rem, 4vw, 3rem);
@@ -689,7 +712,7 @@
 .static-card h1 {
     margin: 0;
     color: #181817;
-    font-family: "Space Grotesk", "Manrope", system-ui, sans-serif;
+    font-family: "Satoshi", "Manrope", system-ui, sans-serif;
     font-size: clamp(2.3rem, 7vw, 4.6rem);
     letter-spacing: -0.07em;
     line-height: 0.96;
@@ -721,7 +744,7 @@
 .static-card h2 {
     margin: 0;
     color: #181817;
-    font-family: "Space Grotesk", "Manrope", system-ui, sans-serif;
+    font-family: "Satoshi", "Manrope", system-ui, sans-serif;
     font-size: clamp(1.4rem, 3vw, 1.9rem);
     letter-spacing: -0.04em;
 }
@@ -730,7 +753,7 @@
     margin: 0 0 6px;
     color: #181817;
     font-size: 1.02rem;
-    font-weight: 700;
+    font-weight: 500;
 }
 
 .about-features {
@@ -813,7 +836,7 @@
 .not-found-card h1 {
     margin: 0;
     color: #181817;
-    font-family: "Space Grotesk", "Manrope", system-ui, sans-serif;
+    font-family: "Satoshi", "Manrope", system-ui, sans-serif;
     font-size: clamp(2.6rem, 8vw, 5.2rem);
     letter-spacing: -0.07em;
     line-height: 0.94;
@@ -905,7 +928,7 @@
 .rules-panel h2 {
     margin: 0;
     color: #181817;
-    font-family: "Space Grotesk", "Manrope", system-ui, sans-serif;
+    font-family: "Satoshi", "Manrope", system-ui, sans-serif;
     letter-spacing: -0.06em;
     line-height: 0.98;
 }
@@ -1196,7 +1219,7 @@
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    margin-top: 4px;
+    margin-top: auto;
     transition: color var(--transition-fast), transform var(--transition-fast);
 }
 .place-card--link:hover .place-card__more {
@@ -1269,7 +1292,10 @@
 }
 
 .place-card__address {
-    font-size: 0.98rem;
+    font-size: 0.86rem;
+    color: var(--text-secondary);
+    margin: 0;
+    line-height: 1.4;
 }
 
 .place-card__credit,
@@ -1841,7 +1867,7 @@
 
 .places-filters__header h2 {
     margin: 0;
-    font-family: "Space Grotesk", "Manrope", system-ui, sans-serif;
+    font-family: "Satoshi", "Manrope", system-ui, sans-serif;
     font-size: 1.15rem;
     letter-spacing: -0.03em;
 }
@@ -1914,7 +1940,7 @@
 }
 
 .dashboard-stat strong {
-    font-family: "Space Grotesk", "Manrope", system-ui, sans-serif;
+    font-family: "Satoshi", "Manrope", system-ui, sans-serif;
     font-size: 1.6rem;
     font-weight: 700;
     color: var(--text-primary);
@@ -1977,7 +2003,6 @@
     .app-shell {
         padding-bottom: 92px;
     }
-
     .topbar {
         position: sticky;
         top: 10px;
@@ -1986,6 +2011,9 @@
         margin-bottom: 18px;
         backdrop-filter: none;
         box-shadow: none;
+    }
+    .topbar-search {
+        grid-column: 1 / -1;
     }
 
     .topnav {
@@ -2204,11 +2232,11 @@
         align-items: end;
     }
 
-    .filter-field--select {
+    .filter-form--inline .filter-field--select {
         grid-row: 1;
     }
 
-    .filter-field--check {
+    .filter-form--inline .filter-field--check {
         grid-row: 2;
     }
 
@@ -2239,12 +2267,12 @@
 
 @media (min-width: 900px) {
     .topbar {
-        grid-template-columns: minmax(190px, 1fr) auto minmax(190px, 1fr);
+        grid-template-columns: auto 280px 1fr auto;
         align-items: center;
     }
 
     .topnav {
-        justify-content: center;
+        justify-content: flex-end;
     }
 
     .topbar__actions {
