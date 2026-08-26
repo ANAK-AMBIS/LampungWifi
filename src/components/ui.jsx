@@ -32,23 +32,6 @@ export function PlaceCard({ place }) {
             <strong>{rating.toFixed(1)}</strong>
           </div>
         </div>
-        <p className="place-card__address">{place.address}</p>
-        {place.submitter_name ? <p className="place-card__credit">Dikontribusikan oleh {place.submitter_name}</p> : null}
-        {place.wifi_ssid ? <p className="place-card__credit">SSID: {place.wifi_ssid} {place.wifi_band ? <StatusPill tone="info">{place.wifi_band}</StatusPill> : null}</p> : null}
-        <div className="place-card__stats">
-          <div>
-            <span>Unduh</span>
-            <strong>{place.wifi_speed_mbps ? `${formatMbps(place.wifi_speed_mbps)} Mbps` : 'Menunggu'}</strong>
-          </div>
-          <div>
-            <span>Akses</span>
-            <strong>{localizeLabel(place.wifi_access_type) || 'Perlu update'}</strong>
-          </div>
-        </div>
-        <div className="place-card__footer">
-          <span className="button button--primary">Buka detail</span>
-          <span className="button button--ghost button--small">Lihat WiFi</span>
-        </div>
       </div>
     </Link>
   )
