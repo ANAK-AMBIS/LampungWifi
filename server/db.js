@@ -234,6 +234,12 @@ function normalizeSpeedPayload(payload) {
     tested_by_name: sanitizeText(payload.testedByName),
     tested_by_email: sanitizeText(payload.testedByEmail),
     ip_hash: payload.ipHash ?? null,
+    claimed_ssid: sanitizeText(payload.claimedSsid),
+    user_latitude: payload.userLatitude != null ? Number(payload.userLatitude) : null,
+    user_longitude: payload.userLongitude != null ? Number(payload.userLongitude) : null,
+    accuracy_m: payload.accuracyM != null ? Number(payload.accuracyM) : null,
+    distance_m: payload.distanceM != null ? Number(payload.distanceM) : null,
+    verified_via: payload.verifiedVia ?? "claim",
   };
 }
 
@@ -247,6 +253,12 @@ function mapSpeedRow(row) {
     loaded_latency_ms: row.loaded_latency_ms == null ? null : Number(row.loaded_latency_ms),
     packet_loss: row.packet_loss == null ? null : Number(row.packet_loss),
     duration_ms: row.duration_ms == null ? null : Number(row.duration_ms),
+    claimed_ssid: row.claimed_ssid ?? null,
+    user_latitude: row.user_latitude == null ? null : Number(row.user_latitude),
+    user_longitude: row.user_longitude == null ? null : Number(row.user_longitude),
+    accuracy_m: row.accuracy_m == null ? null : Number(row.accuracy_m),
+    distance_m: row.distance_m == null ? null : Number(row.distance_m),
+    verified_via: row.verified_via ?? "claim",
   };
 }
 
@@ -593,6 +605,12 @@ function createMemoryStore() {
         tested_by_name: normalized.tested_by_name || meta.testerName || "Anon",
         tested_by_email: normalized.tested_by_email || meta.testerEmail,
         ip_hash: meta.ipHash ?? normalized.ip_hash ?? null,
+        claimed_ssid: normalized.claimed_ssid ?? null,
+        user_latitude: normalized.user_latitude ?? null,
+        user_longitude: normalized.user_longitude ?? null,
+        accuracy_m: normalized.accuracy_m ?? null,
+        distance_m: normalized.distance_m ?? null,
+        verified_via: normalized.verified_via ?? "claim",
         created_at: new Date().toISOString(),
       };
       speedTests.unshift(record);
@@ -1230,10 +1248,21 @@ function createPostgresStore() {
         // ignore if table not exists yet
       }
       const result = await pool.query(
-        `INSERT INTO speed_tests (place_id, download_mbps, upload_mbps, ping_ms, jitter_ms, loaded_latency_ms, packet_loss, duration_ms, raw_summary, tested_by_name, tested_by_email, ip_hash)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
-        [normalized.place_id, normalized.download_mbps, normalized.upload_mbps, normalized.ping_ms, normalized.jitter_ms, normalized.loaded_latency_ms, normalized.packet_loss, normalized.duration_ms, normalized.raw_summary ? JSON.stringify(normalized.raw_summary) : null, normalized.tested_by_name || meta.testerName || "Anon", normalized.tested_by_email || meta.testerEmail, meta.ipHash ?? normalized.ip_hash ?? null],
-      );
+        `INSERT INTO speed_tests (place_id, download_mbps, upload_mbps, ping_ms, jitter_ms, loaded_latency_ms, packet_loss, duration_ms, raw_summary, tested_by_name, tested_by_email, ip_hash, claimed_ssid, user_latitude, user_longitude, accuracy_m, distance_m, verified_via)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18) RETURNING *`,
+        [normalized.place_id, normalized.download_mbps, normalized.upload_mbps, normalized.ping_ms, normalized.jitter_ms, normalized.loaded_latency_ms, normalized.packet_loss, normalized.duration_ms, normalized.raw_summary ? JSON.stringify(normalized.raw_summary) : null, normalized.tested_by_name || meta.testerName || "Anon", normalized.tested_by_email || meta.testerEmail, meta.ipHash ?? normalized.ip_hash ?? null, normalized.claimed_ssid ?? null, normalized.user_latitude ?? null, normalized.user_longitude ?? null, normalized.accuracy_m ?? null, normalized.distance_m ?? null, normalized.verified_via ?? "claim"],
+      ).catch(async (e) => {
+        // fallback for DB without new columns (old schema)
+        if (e.message?.includes("claimed_ssid") || e.message?.includes("column")) {
+          console.warn("[db] speed_tests new cols missing, fallback insert:", e.message);
+          const fb = await pool.query(
+            `INSERT INTO speed_tests (place_id, download_mbps, upload_mbps, ping_ms, jitter_ms, loaded_latency_ms, packet_loss, duration_ms, raw_summary, tested_by_name, tested_by_email, ip_hash) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
+            [normalized.place_id, normalized.download_mbps, normalized.upload_mbps, normalized.ping_ms, normalized.jitter_ms, normalized.loaded_latency_ms, normalized.packet_loss, normalized.duration_ms, normalized.raw_summary ? JSON.stringify(normalized.raw_summary) : null, normalized.tested_by_name || meta.testerName || "Anon", normalized.tested_by_email || meta.testerEmail, meta.ipHash ?? normalized.ip_hash ?? null],
+          );
+          return fb;
+        }
+        throw e;
+      });
       return mapSpeedRow(result.rows[0]);
     },
     async listSpeedTests(placeId, opts = {}) {

@@ -238,9 +238,11 @@ export function PlaceDetailPage({ placeId, initialState = emptyPlaceState }) {
           </div>
 
           <SpeedTestWidget
+            place={place}
             placeId={place.id}
             initialStats={place.speed_stats}
             initialTests={place.speed_tests}
+            approvedSsids={wifiCreds}
             onSaved={refreshPlace}
           />
 
