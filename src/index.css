@@ -1,11 +1,43 @@
 @import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap");
 
 :root {
+    /* Color Palette - Warm Coffee & Cream Minimalist */
+    --bg-primary: #f8f6f0;      /* Soft warm milk/oat background */
+    --bg-secondary: #ffffff;    /* Pure white for card backgrounds */
+    --bg-tertiary: #f1ebd9;     /* Soft warm sand/latte for inputs/secondary areas */
+    --bg-accent: #2d2018;       /* Rich espresso brown for primary callouts */
+    --bg-accent-hover: #403025; /* Muted warm chocolate hover state */
+
+    --text-primary: #1d120c;    /* Deep dark chocolate/coffee */
+    --text-secondary: #6e5f54;  /* Muted warm cocoa brown for subtitles/descriptions */
+    --text-muted: #9e8e81;      /* Soft sand/warm gray text */
+    --text-on-accent: #fdfbf7;  /* High contrast warm cream text */
+
+    --border-color: #e6dfd1;    /* Soft warm beige border */
+    --border-color-hover: #2d2018; /* Rich espresso highlight border on hover */
+    --border-accent: #2d2018;   /* Espresso border */
+
+    /* Shadows - Soft and Premium */
+    --shadow-sm: 0 1px 2px 0 rgba(45, 32, 24, 0.04);
+    --shadow-md: 0 4px 16px -2px rgba(45, 32, 24, 0.04), 0 2px 6px -1px rgba(45, 32, 24, 0.02);
+    --shadow-lg: 0 16px 32px -4px rgba(45, 32, 24, 0.05), 0 4px 16px -2px rgba(45, 32, 24, 0.03);
+
+    /* Radii */
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --radius-xl: 20px;
+    --radius-full: 9999px;
+
+    /* Transitions */
+    --transition-fast: 120ms ease;
+    --transition-normal: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+
     font-family: "Manrope", system-ui, sans-serif;
     line-height: 1.5;
     font-weight: 450;
-    color: #181817;
-    background: #f4f1ea;
+    color: var(--text-primary);
+    background: var(--bg-primary);
     font-synthesis: none;
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
@@ -24,7 +56,7 @@ body {
     margin: 0;
     min-width: 320px;
     min-height: 100vh;
-    color: #181817;
+    color: var(--text-primary);
 }
 
 body::before {
@@ -34,8 +66,8 @@ body::before {
     z-index: -1;
     pointer-events: none;
     background:
-        linear-gradient(rgba(24, 24, 23, 0.035) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(24, 24, 23, 0.035) 1px, transparent 1px);
+        linear-gradient(rgba(45, 32, 24, 0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(45, 32, 24, 0.02) 1px, transparent 1px);
     background-size: 44px 44px;
     mask-image: linear-gradient(to bottom, black, transparent 70%);
 }
