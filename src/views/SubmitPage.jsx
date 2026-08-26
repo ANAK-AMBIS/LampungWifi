@@ -14,13 +14,18 @@ export function SubmitPage() {
             melanggar privasi. Setiap kiriman masuk moderasi sebelum tampil di
             direktori publik.
           </p>
-          <div className="policy-list">
-            {legalRules.map((rule) => (
-              <article key={rule} className="policy-list__item">
-                <span className="policy-list__dot" />
-                <p>{rule}</p>
-              </article>
-            ))}
+          <div className="submit-copy__guidelines">
+            <h3>Panduan Kontribusi</h3>
+            <div className="policy-list">
+              {legalRules.map((rule, index) => (
+                <article key={rule} className="policy-list__item">
+                  <span className="policy-list__number">
+                    {String(index + 1).padStart(2, "0")}
+                  </span>
+                  <p>{rule}</p>
+                </article>
+              ))}
+            </div>
           </div>
         </div>
 

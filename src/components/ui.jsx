@@ -16,8 +16,7 @@ export function SectionHeader({ eyebrow, title, description, action }) {
   )
 }
 
-export function PlaceCard({ place }) {
-  const rating = Number(place.avg_rating ?? 0);
+export function PlaceCard({ place, showBadge = true }) {
   return (
     <Link href={`/places/${place.id}`} className={`place-card place-card--link tone--${place.image_tone || 'lagoon'}`}>
       <div className="place-card__media">
@@ -26,29 +25,11 @@ export function PlaceCard({ place }) {
       <div className="place-card__body">
         <div className="place-card__heading">
           <div>
-            <h3>{place.name} {place.is_hype ? <StatusPill tone="warning">HYPE</StatusPill> : null}</h3>
-          </div>
-          <div className="rating-badge">
-            <strong>{rating.toFixed(1)}</strong>
+            <h3>{place.name} {showBadge && place.is_hype ? <StatusPill tone="warning">HYPE</StatusPill> : null}</h3>
           </div>
         </div>
-        <p className="place-card__address">{place.address}</p>
-        {place.submitter_name ? <p className="place-card__credit">Dikontribusikan oleh {place.submitter_name}</p> : null}
-        {place.wifi_ssid ? <p className="place-card__credit">SSID: {place.wifi_ssid} {place.wifi_band ? <StatusPill tone="info">{place.wifi_band}</StatusPill> : null}</p> : null}
-        <div className="place-card__stats">
-          <div>
-            <span>Unduh</span>
-            <strong>{place.wifi_speed_mbps ? `${formatMbps(place.wifi_speed_mbps)} Mbps` : 'Menunggu'}</strong>
-          </div>
-          <div>
-            <span>Akses</span>
-            <strong>{localizeLabel(place.wifi_access_type) || 'Perlu update'}</strong>
-          </div>
-        </div>
-        <div className="place-card__footer">
-          <span className="button button--primary">Buka detail</span>
-          <span className="button button--ghost button--small">Lihat WiFi</span>
-        </div>
+        {place.address ? <p className="place-card__address">{place.address}</p> : null}
+        <span className="place-card__more">Selengkapnya &rarr;</span>
       </div>
     </Link>
   )

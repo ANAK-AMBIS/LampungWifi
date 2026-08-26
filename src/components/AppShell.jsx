@@ -3,6 +3,7 @@ import {
   ScrollOnRouteChange,
   TopNav,
   TopbarLogin,
+  TopbarSearch,
   WhatsNewModal,
 } from "./AppShellClient";
 import { appVersion } from "../lib/version";
@@ -43,6 +44,7 @@ export function AppShell({ children }) {
             Direktori WiFi publik Bandar Lampung
           </span>
         </Link>
+        <TopbarSearch />
         <TopNav items={navItems} />
         <TopbarLogin />
       </header>

@@ -79,6 +79,10 @@ export function PlacesPage({
   const hasNext = offset + pageSize < state.total;
 
   useEffect(() => {
+    setFilters(initialFilters);
+  }, [initialFilters]);
+
+  useEffect(() => {
     if (isFirstRender.current) {
       isFirstRender.current = false;
       return;
@@ -180,21 +184,17 @@ export function PlacesPage({
   return (
     <main className="page page--list">
       <section className="section section--list">
-        {/* Search bar */}
-        <form className="places-search" onSubmit={applySearch}>
-          <label className="sr-only" htmlFor="places-search">
-            Cari tempat WiFi
-          </label>
-          <input
-            id="places-search"
-            name="q"
-            defaultValue={filters.q}
-            placeholder="Cari tempat, kecamatan, atau suasana kerja"
-          />
-          <button type="submit" className="button button--primary">
-            Cari
-          </button>
-        </form>
+        <div className="section-header" style={{ marginBottom: "24px" }}>
+          <div>
+            <span className="eyebrow">Direktori WiFi</span>
+            <h1>{filters.q ? `Pencarian: ${filters.q}` : "Temukan WiFi Terbaik"}</h1>
+            <p>
+              {filters.q
+                ? `Menampilkan tempat WiFi publik di Bandar Lampung yang cocok dengan kata kunci "${filters.q}".`
+                : "Jelajahi dan filter WiFi publik di Bandar Lampung berdasarkan kecepatan, colokan, dan operasional."}
+            </p>
+          </div>
+        </div>
 
         {/* Results header */}
         <div className="places-header">
@@ -354,7 +354,7 @@ export function PlacesPage({
             ) : state.items.length ? (
               <div className="place-grid">
                 {state.items.map((place) => (
-                  <PlaceCard key={place.id} place={place} />
+                  <PlaceCard key={place.id} place={place} showBadge={false} />
                 ))}
               </div>
             ) : (

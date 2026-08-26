@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useEffect, useSyncExternalStore } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { useAuth } from "../lib/useAuth";
 
 const whatsNewStorageKey = "balamwifi_seen_whats_new";
@@ -56,6 +56,43 @@ export function TopbarLogin() {
         </button>
       )}
     </div>
+  );
+}
+
+export function TopbarSearch() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+  const [query, setQuery] = useState("");
+
+  useEffect(() => {
+    if (pathname === "/places") {
+      setQuery(searchParams.get("q") || "");
+    } else {
+      setQuery("");
+    }
+  }, [pathname, searchParams]);
+
+  function handleSearchSubmit(event) {
+    event.preventDefault();
+    const params = new URLSearchParams(searchParams.toString());
+    if (query.trim()) {
+      params.set("q", query.trim());
+    } else {
+      params.delete("q");
+    }
+    router.push(`/places?${params.toString()}`);
+  }
+
+  return (
+    <form className="topbar-search" onSubmit={handleSearchSubmit}>
+      <input
+        type="text"
+        placeholder="Cari tempat..."
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+      />
+    </form>
   );
 }
 

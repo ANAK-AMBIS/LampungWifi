@@ -75,293 +75,333 @@ export function SubmitPlaceForm() {
       ) : null}
       <LoginGate {...auth} />
       <form className="submit-form" onSubmit={handleSubmit}>
-        <div className="submit-form__grid">
+        {/* Section 1: Informasi Utama */}
+        <div className="form-section">
+          <div className="form-section-header">
+            <h3 className="form-section-title">Informasi Utama</h3>
+            <p className="form-section-description">Detail lokasi dan jenis tempat WiFi publik berada.</p>
+          </div>
+          <div className="submit-form__grid">
+            <label className="field">
+              <span>Nama tempat</span>
+              <input
+                name="name"
+                value={form.name}
+                onChange={updateField}
+                required
+              />
+            </label>
+            <label className="field">
+              <span>Kecamatan</span>
+              <input
+                name="district"
+                value={form.district}
+                onChange={updateField}
+                required
+              />
+            </label>
+          </div>
+
           <label className="field">
-            <span>Nama tempat</span>
+            <span>Alamat</span>
             <input
-              name="name"
-              value={form.name}
+              name="address"
+              value={form.address}
               onChange={updateField}
               required
             />
           </label>
+
+          <div className="submit-form__grid">
+            <label className="field">
+              <span>Kategori</span>
+              <select
+                name="category"
+                value={form.category}
+                onChange={updateField}
+              >
+                {categoryOptions.map((item) => (
+                  <option key={item} value={item}>
+                    {localizeLabel(item)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="field">
+              <span>Jenis akses</span>
+              <select
+                name="wifiAccessType"
+                value={form.wifiAccessType}
+                onChange={updateField}
+              >
+                {accessTypeOptions.map((item) => (
+                  <option key={item} value={item}>
+                    {localizeLabel(item)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          <div className="submit-form__grid">
+            <label className="field">
+              <span>Lintang</span>
+              <input
+                name="latitude"
+                value={form.latitude}
+                onChange={updateField}
+                placeholder="-5.38"
+              />
+            </label>
+            <label className="field">
+              <span>Bujur</span>
+              <input
+                name="longitude"
+                value={form.longitude}
+                onChange={updateField}
+                placeholder="105.25"
+              />
+            </label>
+          </div>
+        </div>
+
+        {/* Section 2: Ketersediaan & Fasilitas */}
+        <div className="form-section">
+          <div className="form-section-header">
+            <h3 className="form-section-title">Ketersediaan & Fasilitas</h3>
+            <p className="form-section-description">Centang opsi fasilitas yang tersedia di lokasi ini.</p>
+          </div>
+          <div className="toggle-grid">
+            <label className="toggle-card">
+              <input
+                type="checkbox"
+                name="wifiAvailable"
+                checked={form.wifiAvailable}
+                onChange={updateField}
+              />
+              <div>
+                <strong>WiFi tersedia</strong>
+                <span>
+                  Matikan jika tempat ini sedang tidak punya koneksi aktif.
+                </span>
+              </div>
+            </label>
+            <label className="toggle-card">
+              <input
+                type="checkbox"
+                name="hasPowerOutlets"
+                checked={form.hasPowerOutlets}
+                onChange={updateField}
+              />
+              <div>
+                <strong>Colokan listrik</strong>
+                <span>Penting untuk sesi kerja lebih dari satu jam.</span>
+              </div>
+            </label>
+            <label className="toggle-card">
+              <input
+                type="checkbox"
+                name="quietZone"
+                checked={form.quietZone}
+                onChange={updateField}
+              />
+              <div>
+                <strong>Area tenang</strong>
+                <span>
+                  Tandai hanya jika panggilan dan kerja fokus masih realistis.
+                </span>
+              </div>
+            </label>
+            <label className="toggle-card">
+              <input
+                type="checkbox"
+                name="open24Hours"
+                checked={form.open24Hours}
+                onChange={updateField}
+              />
+              <div>
+                <strong>Buka 24 jam</strong>
+                <span>Berguna untuk kerja malam atau perjalanan.</span>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        {/* Section 3: Detail Koneksi WiFi */}
+        <div className="form-section">
+          <div className="form-section-header">
+            <h3 className="form-section-title">Detail Koneksi WiFi</h3>
+            <p className="form-section-description">SSID, jenis band, password WiFi, serta sumber password.</p>
+          </div>
+          <div className="submit-form__grid submit-form__grid--triple">
+            <label className="field">
+              <span>SSID</span>
+              <input
+                name="wifiSsid"
+                value={form.wifiSsid}
+                onChange={updateField}
+                placeholder="Contoh: CafeWiFi-5G"
+                maxLength={32}
+              />
+            </label>
+            <label className="field">
+              <span>Band</span>
+              <select name="wifiBand" value={form.wifiBand} onChange={updateField}>
+                {bandOptions.map((b) => (
+                  <option key={b} value={b}>{b}</option>
+                ))}
+              </select>
+            </label>
+            <label className="field">
+              <span>Password WiFi publik</span>
+              <input
+                name="wifiPassword"
+                value={form.wifiPassword}
+                onChange={updateField}
+                placeholder="Hanya jika terpampang"
+              />
+            </label>
+          </div>
+          <div className="submit-form__grid">
+            <label className="field">
+              <span>Sumber password</span>
+              <select
+                name="passwordSource"
+                value={form.passwordSource}
+                onChange={updateField}
+              >
+                <option value="">Pilih sumber</option>
+                {passwordSourceOptions.map((item) => (
+                  <option key={item} value={item}>
+                    {localizeLabel(item)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="toggle-card" style={{ alignSelf: "end" }}>
+              <input type="checkbox" name="isHype" checked={form.isHype} onChange={updateField} />
+              <div><strong>Tempat hype</strong><span>Password hanya tampil jika login.</span></div>
+            </label>
+          </div>
+
           <label className="field">
-            <span>Kecamatan</span>
-            <input
-              name="district"
-              value={form.district}
+            <span>Catatan akses</span>
+            <textarea
+              name="accessNotes"
+              value={form.accessNotes}
               onChange={updateField}
-              required
+              placeholder="Contoh: tanya kasir setelah pesan, atau pakai portal setelah check-in."
             />
           </label>
         </div>
 
-        <label className="field">
-          <span>Alamat</span>
-          <input
-            name="address"
-            value={form.address}
-            onChange={updateField}
-            required
-          />
-        </label>
-
-        <div className="submit-form__grid">
-          <label className="field">
-            <span>Kategori</span>
-            <select
-              name="category"
-              value={form.category}
-              onChange={updateField}
-            >
-              {categoryOptions.map((item) => (
-                <option key={item} value={item}>
-                  {localizeLabel(item)}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="field">
-            <span>Jenis akses</span>
-            <select
-              name="wifiAccessType"
-              value={form.wifiAccessType}
-              onChange={updateField}
-            >
-              {accessTypeOptions.map((item) => (
-                <option key={item} value={item}>
-                  {localizeLabel(item)}
-                </option>
-              ))}
-            </select>
-          </label>
+        {/* Section 4: Kinerja Awal WiFi */}
+        <div className="form-section">
+          <div className="form-section-header">
+            <h3 className="form-section-title">Kinerja Awal WiFi</h3>
+            <p className="form-section-description">Laporan hasil uji kecepatan internet di lokasi jika ada.</p>
+          </div>
+          <div className="submit-form__grid submit-form__grid--triple">
+            <label className="field">
+              <span>Unduh Mbps</span>
+              <input
+                name="wifiSpeedMbps"
+                value={form.wifiSpeedMbps}
+                onChange={updateField}
+                placeholder="Contoh: 45"
+              />
+            </label>
+            <label className="field">
+              <span>Unggah Mbps</span>
+              <input
+                name="uploadMbps"
+                value={form.uploadMbps}
+                onChange={updateField}
+                placeholder="Contoh: 20"
+              />
+            </label>
+            <label className="field">
+              <span>Ping ms</span>
+              <input
+                name="pingMs"
+                value={form.pingMs}
+                onChange={updateField}
+                placeholder="Contoh: 12"
+              />
+            </label>
+          </div>
         </div>
 
-        <div className="submit-form__grid">
+        {/* Section 5: Operasional & Media */}
+        <div className="form-section">
+          <div className="form-section-header">
+            <h3 className="form-section-title">Operasional & Media</h3>
+            <p className="form-section-description">Jam buka operasional, suasana tempat, serta foto pendukung.</p>
+          </div>
+          <div className="submit-form__grid">
+            <label className="field">
+              <span>Jam operasional</span>
+              <input
+                name="operatingHours"
+                value={form.operatingHours}
+                onChange={updateField}
+                placeholder="Mon-Fri 08:00-22:00"
+              />
+            </label>
+            <label className="field">
+              <span>Label suasana</span>
+              <input
+                name="ambienceLabel"
+                value={form.ambienceLabel}
+                onChange={updateField}
+                placeholder="Area tenang / pusat kerja / pilihan singgah"
+              />
+            </label>
+          </div>
+
           <label className="field">
-            <span>Lintang</span>
-            <input
-              name="latitude"
-              value={form.latitude}
+            <span>Catatan peta atau konteks</span>
+            <textarea
+              name="mapContext"
+              value={form.mapContext}
               onChange={updateField}
-              placeholder="-5.38"
+              placeholder="Patokan, lantai, area duduk terbaik, atau kampus/bisnis terdekat."
             />
           </label>
-          <label className="field">
-            <span>Bujur</span>
-            <input
-              name="longitude"
-              value={form.longitude}
-              onChange={updateField}
-              placeholder="105.25"
-            />
-          </label>
+
+          <div className="submit-form__grid">
+            <label className="field">
+              <span>Warna tema gambar</span>
+              <select
+                name="imageTone"
+                value={form.imageTone}
+                onChange={updateField}
+              >
+                {imageToneOptions.map((tone) => (
+                  <option key={tone} value={tone}>
+                    {imageToneLabels[tone] || tone}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="field">
+              <span>URL gambar</span>
+              <input
+                type="url"
+                name="imageUrl"
+                value={form.imageUrl}
+                onChange={updateField}
+                placeholder="https://i.ibb.co/.../workspace-lampung.jpg"
+              />
+            </label>
+          </div>
         </div>
-
-        <div className="toggle-grid">
-          <label className="toggle-card">
-            <input
-              type="checkbox"
-              name="wifiAvailable"
-              checked={form.wifiAvailable}
-              onChange={updateField}
-            />
-            <div>
-              <strong>WiFi tersedia</strong>
-              <span>
-                Matikan jika tempat ini sedang tidak punya koneksi aktif.
-              </span>
-            </div>
-          </label>
-          <label className="toggle-card">
-            <input
-              type="checkbox"
-              name="hasPowerOutlets"
-              checked={form.hasPowerOutlets}
-              onChange={updateField}
-            />
-            <div>
-              <strong>Colokan listrik</strong>
-              <span>Penting untuk sesi kerja lebih dari satu jam.</span>
-            </div>
-          </label>
-          <label className="toggle-card">
-            <input
-              type="checkbox"
-              name="quietZone"
-              checked={form.quietZone}
-              onChange={updateField}
-            />
-            <div>
-              <strong>Area tenang</strong>
-              <span>
-                Tandai hanya jika panggilan dan kerja fokus masih realistis.
-              </span>
-            </div>
-          </label>
-          <label className="toggle-card">
-            <input
-              type="checkbox"
-              name="open24Hours"
-              checked={form.open24Hours}
-              onChange={updateField}
-            />
-            <div>
-              <strong>Buka 24 jam</strong>
-              <span>Berguna untuk kerja malam atau perjalanan.</span>
-            </div>
-          </label>
-        </div>
-
-        <div className="submit-form__grid submit-form__grid--triple">
-          <label className="field">
-            <span>SSID</span>
-            <input
-              name="wifiSsid"
-              value={form.wifiSsid}
-              onChange={updateField}
-              placeholder="Contoh: CafeWiFi-5G"
-              maxLength={32}
-            />
-          </label>
-          <label className="field">
-            <span>Band</span>
-            <select name="wifiBand" value={form.wifiBand} onChange={updateField}>
-              {bandOptions.map((b) => (
-                <option key={b} value={b}>{b}</option>
-              ))}
-            </select>
-          </label>
-          <label className="field">
-            <span>Password WiFi publik</span>
-            <input
-              name="wifiPassword"
-              value={form.wifiPassword}
-              onChange={updateField}
-              placeholder="Hanya jika terpampang publik atau disetujui pemilik"
-            />
-          </label>
-        </div>
-        <div className="submit-form__grid">
-          <label className="field">
-            <span>Sumber password</span>
-            <select
-              name="passwordSource"
-              value={form.passwordSource}
-              onChange={updateField}
-            >
-              <option value="">Pilih sumber</option>
-              {passwordSourceOptions.map((item) => (
-                <option key={item} value={item}>
-                  {localizeLabel(item)}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="toggle-card" style={{ alignSelf: "end" }}>
-            <input type="checkbox" name="isHype" checked={form.isHype} onChange={updateField} />
-            <div><strong>Tempat hype</strong><span>Password hanya tampil jika login.</span></div>
-          </label>
-        </div>
-
-        <label className="field">
-          <span>Catatan akses</span>
-          <textarea
-            name="accessNotes"
-            value={form.accessNotes}
-            onChange={updateField}
-            placeholder="Contoh: tanya kasir setelah pesan, atau pakai portal setelah check-in."
-          />
-        </label>
-
-        <div className="submit-form__grid submit-form__grid--triple">
-          <label className="field">
-            <span>Unduh Mbps</span>
-            <input
-              name="wifiSpeedMbps"
-              value={form.wifiSpeedMbps}
-              onChange={updateField}
-            />
-          </label>
-          <label className="field">
-            <span>Unggah Mbps</span>
-            <input
-              name="uploadMbps"
-              value={form.uploadMbps}
-              onChange={updateField}
-            />
-          </label>
-          <label className="field">
-            <span>Ping ms</span>
-            <input
-              name="pingMs"
-              value={form.pingMs}
-              onChange={updateField}
-            />
-          </label>
-        </div>
-
-        <div className="submit-form__grid">
-          <label className="field">
-            <span>Jam operasional</span>
-            <input
-              name="operatingHours"
-              value={form.operatingHours}
-              onChange={updateField}
-              placeholder="Mon-Fri 08:00-22:00"
-            />
-          </label>
-          <label className="field">
-            <span>Label suasana</span>
-            <input
-              name="ambienceLabel"
-              value={form.ambienceLabel}
-              onChange={updateField}
-              placeholder="Area tenang / pusat kerja / pilihan singgah"
-            />
-          </label>
-        </div>
-
-        <label className="field">
-          <span>Catatan peta atau konteks</span>
-          <textarea
-            name="mapContext"
-            value={form.mapContext}
-            onChange={updateField}
-            placeholder="Patokan, lantai, area duduk terbaik, atau kampus/bisnis terdekat."
-          />
-        </label>
-
-        <label className="field">
-          <span>Warna tema gambar</span>
-          <select
-            name="imageTone"
-            value={form.imageTone}
-            onChange={updateField}
-          >
-            {imageToneOptions.map((tone) => (
-              <option key={tone} value={tone}>
-                {imageToneLabels[tone] || tone}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="field">
-          <span>URL gambar</span>
-          <input
-            type="url"
-            name="imageUrl"
-            value={form.imageUrl}
-            onChange={updateField}
-            placeholder="https://i.ibb.co/.../workspace-lampung.jpg"
-          />
-        </label>
 
         <button
           type="submit"
           className="button button--primary"
           disabled={submitting}
+          style={{ marginTop: "8px" }}
         >
           {submitting ? "Mengirim..." : "Kirim tempat untuk ditinjau"}
         </button>
