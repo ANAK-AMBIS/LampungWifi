@@ -5,14 +5,6 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { getPlaces } from "../api";
 import {
-  BookOpen,
-  Coffee,
-  GraduationCap,
-  Monitor,
-  TreePine,
-  UtensilsCrossed,
-} from "lucide-react";
-import {
   categoryOptions,
   categoryLabels,
   quickFilters,
@@ -149,12 +141,12 @@ export function HomePage({ initialFeatured }) {
 function categoryIcon(category) {
   const size = 28;
   const icons = {
-    "Cafe / Coffee Shop": <Coffee size={size} />,
-    "Coworking Space": <Monitor size={size} />,
-    Library: <BookOpen size={size} />,
-    "Campus Lounge": <GraduationCap size={size} />,
-    Restaurant: <UtensilsCrossed size={size} />,
-    "Rest Area": <TreePine size={size} />,
+    "Cafe / Coffee Shop": <i className="hgi-stroke hgi-coffee-02" style={{ fontSize: size }} aria-hidden="true"></i>,
+    "Coworking Space": <i className="hgi-stroke hgi-computer" style={{ fontSize: size }} aria-hidden="true"></i>,
+    Library: <i className="hgi-stroke hgi-book-open-02" style={{ fontSize: size }} aria-hidden="true"></i>,
+    "Campus Lounge": <i className="hgi-stroke hgi-graduation-cap" style={{ fontSize: size }} aria-hidden="true"></i>,
+    Restaurant: <i className="hgi-stroke hgi-restaurant" style={{ fontSize: size }} aria-hidden="true"></i>,
+    "Rest Area": <i className="hgi-stroke hgi-pine-tree" style={{ fontSize: size }} aria-hidden="true"></i>,
   };
-  return icons[category] || <Monitor size={size} />;
+  return icons[category] || <i className="hgi-stroke hgi-computer" style={{ fontSize: size }} aria-hidden="true"></i>;
 }

@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { ShieldCheck, Star, UserCheck } from "lucide-react";
 
 export const metadata = {
   title: "Tentang — BalamWiFi",
@@ -45,7 +44,7 @@ export default function Page() {
         <div className="about-features">
           <div className="about-feature-card">
             <span className="about-feature-card__icon">
-              <ShieldCheck size={24} />
+              <i className="hgi-stroke hgi-shield-check" style={{ fontSize: 24 }} aria-hidden="true"></i>
             </span>
             <h3>Data terverifikasi</h3>
             <p>
@@ -55,7 +54,7 @@ export default function Page() {
           </div>
           <div className="about-feature-card">
             <span className="about-feature-card__icon">
-              <Star size={24} />
+              <i className="hgi-stroke hgi-star" style={{ fontSize: 24 }} aria-hidden="true"></i>
             </span>
             <h3>Rating ganda</h3>
             <p>
@@ -65,7 +64,7 @@ export default function Page() {
           </div>
           <div className="about-feature-card">
             <span className="about-feature-card__icon">
-              <UserCheck size={24} />
+              <i className="hgi-stroke hgi-user-check-01" style={{ fontSize: 24 }} aria-hidden="true"></i>
             </span>
             <h3>Kontributor dihargai</h3>
             <p>

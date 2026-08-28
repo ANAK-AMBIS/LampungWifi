@@ -4,17 +4,6 @@ import { useAuth } from "../../src/lib/useAuth";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import {
-  Clock,
-  FileText,
-  LayoutDashboard,
-  LogOut,
-  MapPin,
-  MessageSquare,
-  Plus,
-  Search,
-  Star,
-} from "lucide-react";
 import { SubmitPlaceForm } from "../../src/components/SubmitPlaceForm";
 
 export default function DashboardPage() {
@@ -101,7 +90,7 @@ export default function DashboardPage() {
           className="button button--ghost"
           onClick={signOut}
         >
-          <LogOut size={16} />
+          <i className="hgi-stroke hgi-logout-01" style={{ fontSize: 16 }} aria-hidden="true"></i>
           Keluar
         </button>
       </section>
@@ -117,7 +106,7 @@ export default function DashboardPage() {
             className={`dashboard-tab ${tab === "overview" ? "dashboard-tab--active" : ""}`}
             onClick={() => setTab("overview")}
           >
-            <LayoutDashboard size={16} />
+            <i className="hgi-stroke hgi-dashboard-square-01" style={{ fontSize: 16 }} aria-hidden="true"></i>
             Ringkasan
           </button>
           <button
@@ -125,7 +114,7 @@ export default function DashboardPage() {
             className={`dashboard-tab ${tab === "submit" ? "dashboard-tab--active" : ""}`}
             onClick={() => setTab("submit")}
           >
-            <Plus size={16} />
+            <i className="hgi-stroke hgi-add-01" style={{ fontSize: 16 }} aria-hidden="true"></i>
             Tambah Tempat
           </button>
         </div>
@@ -143,17 +132,17 @@ export default function DashboardPage() {
             <section className="static-card">
               <div className="dashboard-stats">
                 <div className="dashboard-stat">
-                  <FileText size={20} />
+                  <i className="hgi-stroke hgi-file-01" style={{ fontSize: 20 }} aria-hidden="true"></i>
                   <strong>{submissions.length}</strong>
                   <span>Tempat dikirim</span>
                 </div>
                 <div className="dashboard-stat">
-                  <MessageSquare size={20} />
+                  <i className="hgi-stroke hgi-bubble-chat" style={{ fontSize: 20 }} aria-hidden="true"></i>
                   <strong>{reviews.length}</strong>
                   <span>Ulasan ditulis</span>
                 </div>
                 <div className="dashboard-stat">
-                  <Star size={20} />
+                  <i className="hgi-stroke hgi-star" style={{ fontSize: 20 }} aria-hidden="true"></i>
                   <strong>
                     {submissions.filter((s) => s.status === "approved").length}
                   </strong>
@@ -165,7 +154,7 @@ export default function DashboardPage() {
             {/* Submissions */}
             <section className="static-card">
               <h2>
-                <MapPin size={20} />
+                <i className="hgi-stroke hgi-map-pin" style={{ fontSize: 20 }} aria-hidden="true"></i>
                 Tempat yang Kamu Kirim
               </h2>
               {submissions.length === 0 ? (
@@ -213,7 +202,7 @@ export default function DashboardPage() {
                               : "Menunggu"}
                         </span>
                         <span className="dashboard-item__date">
-                          <Clock size={12} />
+                          <i className="hgi-stroke hgi-clock-01" style={{ fontSize: 12 }} aria-hidden="true"></i>
                           {formatDate(item.created_at)}
                         </span>
                       </div>
@@ -226,7 +215,7 @@ export default function DashboardPage() {
             {/* Reviews */}
             <section className="static-card">
               <h2>
-                <MessageSquare size={20} />
+                <i className="hgi-stroke hgi-bubble-chat" style={{ fontSize: 20 }} aria-hidden="true"></i>
                 Ulasan Kamu
               </h2>
               {reviews.length === 0 ? (
@@ -250,7 +239,7 @@ export default function DashboardPage() {
                           ⚡ {item.rating_speed}/5 · 🪑 {item.rating_comfort}/5
                         </span>
                         <span className="dashboard-item__date">
-                          <Clock size={12} />
+                          <i className="hgi-stroke hgi-clock-01" style={{ fontSize: 12 }} aria-hidden="true"></i>
                           {formatDate(item.created_at)}
                         </span>
                       </div>
