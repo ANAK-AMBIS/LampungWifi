@@ -1,25 +1,19 @@
 import Link from "next/link";
 import { SectionHeader } from "../components/ui";
-import {
-  CheckCircle,
-  ClipboardList,
-  SearchCheck,
-  ShieldCheck,
-} from "lucide-react";
 
 export function RulesPage() {
   const moderationSteps = [
     {
       text: "Kontributor login Google lalu mengirim detail tempat.",
-      icon: <ClipboardList size={20} />,
+      icon: <i className="hgi-stroke hgi-clipboard-list" style={{ fontSize: 20 }} aria-hidden="true"></i>,
     },
     {
       text: "Admin memeriksa alamat, jenis akses, dan sumber password jika ada.",
-      icon: <SearchCheck size={20} />,
+      icon: <i className="hgi-stroke hgi-search-check" style={{ fontSize: 20 }} aria-hidden="true"></i>,
     },
     {
       text: "Tempat yang valid disetujui dan nama kontributor tampil sebagai apresiasi.",
-      icon: <CheckCircle size={20} />,
+      icon: <i className="hgi-stroke hgi-checkmark-circle-02" style={{ fontSize: 20 }} aria-hidden="true"></i>,
     },
   ];
   const privacyRules = [
@@ -70,7 +64,7 @@ export function RulesPage() {
           {privacyRules.map((rule) => (
             <article key={rule} className="rule-card rule-card--privacy">
               <span>
-                <ShieldCheck size={20} />
+                <i className="hgi-stroke hgi-shield-check" style={{ fontSize: 20 }} aria-hidden="true"></i>
               </span>
               <p>{rule}</p>
             </article>
