@@ -11,6 +11,10 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="id">
+      <head>
+        <link rel="preconnect" href="https://cdn.hugeicons.com" crossOrigin="anonymous" />
+        <link rel="stylesheet" href="https://cdn.hugeicons.com/font/hgi-stroke-rounded.css" crossOrigin="anonymous" />
+      </head>
       <body>
         <ErrorBoundary>
           <AppShell>{children}</AppShell>
