@@ -1,7 +1,6 @@
 import Link from 'next/link'
 import Image from 'next/image'
-import { localizeLabel } from '../lib/constants'
-import { formatDate, formatMbps } from '../lib/format'
+import { formatDate } from '../lib/format'
 
 export function SectionHeader({ eyebrow, title, description, action }) {
   return (

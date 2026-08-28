@@ -882,7 +882,7 @@ function createPostgresStore() {
         [placeId],
       ).catch(() => ({ rows: [] }));
 
-      let relatedRows = [];
+      let relatedRows;
       try {
         const relatedResult = await pool.query(
           `
@@ -914,8 +914,8 @@ function createPostgresStore() {
         relatedRows = fallback.rows.map(mapRow);
       }
 
-      let wifiCredsRaw = [];
-      let wifiResult = { rows: [] };
+      let wifiCredsRaw;
+      let wifiResult;
       try {
         wifiResult = await pool.query(
           `SELECT * FROM wifi_credentials WHERE place_id = $1 AND status = 'approved' ORDER BY created_at DESC`,
@@ -1209,7 +1209,7 @@ function createPostgresStore() {
         );
         return result.rows[0];
       } catch (e) {
-        if (e.code === "23505") throw new Error("Kamu sudah memberi rating untuk kredensial ini");
+        if (e.code === "23505") throw new Error("Kamu sudah memberi rating untuk kredensial ini", { cause: e });
         throw e;
       }
     },

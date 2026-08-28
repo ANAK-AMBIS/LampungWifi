@@ -79,6 +79,7 @@ export function PlacesPage({
   const hasNext = offset + pageSize < state.total;
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sync URL query params from server to client state
     setFilters(initialFilters);
   }, [initialFilters]);
 
@@ -127,18 +128,8 @@ export function PlacesPage({
       active = false;
       controller.abort();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- offset is filters.offset; filters object intentionally triggers refetch
   }, [fetchId, filters]);
-
-  function applySearch(event) {
-    event.preventDefault();
-    const formData = new FormData(event.currentTarget);
-    const q = String(formData.get("q") ?? "").trim();
-    const nextFilters = { ...filters, q, offset: 0 };
-    const qs = buildQueryString(nextFilters);
-    router.replace(`/places${qs ? `?${qs}` : ""}`, { scroll: false });
-    setFilters(nextFilters);
-    setFetchId((id) => id + 1);
-  }
 
   function applyFilters(event) {
     event.preventDefault();
