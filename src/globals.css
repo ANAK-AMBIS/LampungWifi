@@ -23,6 +23,23 @@
     width: 100%;
     position: relative;
 }
+.topbar-search__toggle {
+    display: none;
+}
+.topbar-search__form {
+    width: 100%;
+    display: block;
+}
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
 .topbar-search input {
     width: 100%;
     min-height: 38px;
@@ -1996,14 +2013,70 @@
     .topbar {
         position: sticky;
         top: 10px;
-        grid-template-columns: 1fr auto;
+        grid-template-columns: 1fr auto auto;
+        gap: 12px;
         align-items: center;
         margin-bottom: 18px;
         backdrop-filter: none;
         box-shadow: none;
     }
     .topbar-search {
+        display: contents;
+    }
+    .topbar-search__toggle {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 38px;
+        height: 38px;
+        border-radius: var(--radius-full);
+        border: 1px solid var(--border-color);
+        background: var(--bg-secondary);
+        color: var(--text-primary);
+        cursor: pointer;
+        transition: var(--transition-fast);
+        grid-column: 2;
+        grid-row: 1;
+        position: relative;
+    }
+    .topbar-search__toggle:hover {
+        border-color: var(--border-color-hover);
+        background: var(--bg-tertiary);
+    }
+    .topbar-search__toggle-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease;
+    }
+    .topbar-search__toggle-icon--cancel {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        transform: rotate(-90deg) scale(0.5);
+    }
+    .topbar-search__toggle-icon--search {
+        opacity: 1;
+        transform: rotate(0) scale(1);
+    }
+    .topbar-search__toggle--active .topbar-search__toggle-icon--search {
+        opacity: 0;
+        transform: rotate(90deg) scale(0.5);
+    }
+    .topbar-search__toggle--active .topbar-search__toggle-icon--cancel {
+        opacity: 1;
+        transform: rotate(0) scale(1);
+    }
+    .topbar-search__form {
+        display: none;
+    }
+    .topbar-search__form--open {
+        display: block;
         grid-column: 1 / -1;
+        grid-row: 2;
+        width: 100%;
+        margin-top: 4px;
+        animation: slideDown 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
     .topbar__actions {
@@ -2011,6 +2084,8 @@
     }
 
     .topbar__login {
+        grid-column: 3;
+        grid-row: 1;
         justify-content: flex-end;
     }
 

@@ -34,9 +34,6 @@ export function AppShell({ children }) {
       <header className="topbar">
         <Link href="/" className="brand">
           <span className="brand__wordmark">BalamWiFi</span>
-          <span className="brand__tag">
-            Direktori WiFi publik Bandar Lampung
-          </span>
         </Link>
         <Suspense fallback={null}>
           <TopbarSearch />
