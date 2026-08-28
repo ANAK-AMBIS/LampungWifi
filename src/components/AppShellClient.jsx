@@ -18,24 +18,6 @@ export function ScrollOnRouteChange() {
   return null;
 }
 
-export function TopNav({ items }) {
-  const pathname = usePathname();
-
-  return (
-    <nav className="topnav">
-      {items.map((item) => (
-        <Link
-          key={item.href}
-          href={item.href}
-          className={navLinkClass(pathname, item.activeHref ?? item.href)}
-        >
-          {item.label}
-        </Link>
-      ))}
-    </nav>
-  );
-}
-
 export function TopbarLogin() {
   const { user, signIn, signOut } = useAuth();
 
@@ -145,12 +127,6 @@ export function WhatsNewModal({ version }) {
       </div>
     </div>
   );
-}
-
-function navLinkClass(pathname, href) {
-  return pathname === href.split("?")[0]
-    ? "topnav__link topnav__link--active"
-    : "topnav__link";
 }
 
 function subscribeWhatsNew(onStoreChange) {

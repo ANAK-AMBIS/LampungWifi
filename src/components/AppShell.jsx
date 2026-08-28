@@ -1,18 +1,12 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import {
   ScrollOnRouteChange,
-  TopNav,
   TopbarLogin,
   TopbarSearch,
   WhatsNewModal,
 } from "./AppShellClient";
 import { appVersion } from "../lib/version";
-
-const navItems = [
-  { href: "/places", label: "Cari WiFi" },
-  { href: "/rules", label: "Aturan" },
-  { href: "/about", label: "Tentang" },
-];
 
 const footerSections = [
   {
@@ -44,8 +38,9 @@ export function AppShell({ children }) {
             Direktori WiFi publik Bandar Lampung
           </span>
         </Link>
-        <TopbarSearch />
-        <TopNav items={navItems} />
+        <Suspense fallback={null}>
+          <TopbarSearch />
+        </Suspense>
         <TopbarLogin />
       </header>
 
