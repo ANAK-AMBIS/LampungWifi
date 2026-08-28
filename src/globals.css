@@ -59,7 +59,6 @@
     color: var(--text-secondary);
 }
 
-.topnav,
 .topbar__actions,
 .topbar__login,
 .detail-hero__meta,
@@ -69,21 +68,6 @@
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
-}
-
-.topnav__link {
-    padding: 8px 16px;
-    border-radius: var(--radius-full);
-    color: var(--text-secondary);
-    text-decoration: none;
-    font-size: 0.9rem;
-    transition: var(--transition-fast);
-}
-
-.topnav__link:hover,
-.topnav__link--active {
-    background: var(--bg-accent);
-    color: var(--text-on-accent);
 }
 
 .topbar__login {
@@ -1999,10 +1983,16 @@
     font-size: 0.76rem;
 }
 
+/* Hugeicons Icon Font helpers */
+.hgi-stroke {
+    display: inline-block;
+    line-height: 1;
+    vertical-align: middle;
+    font-style: normal;
+    font-weight: 400;
+}
+
 @media (max-width: 899px) {
-    .app-shell {
-        padding-bottom: 92px;
-    }
     .topbar {
         position: sticky;
         top: 10px;
@@ -2014,32 +2004,6 @@
     }
     .topbar-search {
         grid-column: 1 / -1;
-    }
-
-    .topnav {
-        position: fixed;
-        top: auto;
-        left: 12px;
-        right: 12px;
-        bottom: 10px;
-        z-index: 80;
-        justify-content: space-between;
-        gap: 4px;
-        padding: 5px;
-        border: 1px solid var(--border-color);
-        border-radius: var(--radius-full);
-        background: rgba(255, 255, 255, 0.9);
-        backdrop-filter: blur(20px);
-        box-shadow: var(--shadow-lg);
-    }
-
-    .topnav__link {
-        flex: 1;
-        padding: 7px 6px;
-        text-align: center;
-        font-size: 0.74rem;
-        font-weight: 700;
-        white-space: nowrap;
     }
 
     .topbar__actions {
@@ -2267,12 +2231,15 @@
 
 @media (min-width: 900px) {
     .topbar {
-        grid-template-columns: auto 280px 1fr auto;
+        display: flex;
         align-items: center;
+        gap: 14px;
     }
 
-    .topnav {
-        justify-content: flex-end;
+    .topbar-search {
+        margin-left: auto;
+        width: 280px;
+        flex-shrink: 0;
     }
 
     .topbar__actions {
