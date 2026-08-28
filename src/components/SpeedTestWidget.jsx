@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { getSpeedHistory, saveSpeedResult } from "../api";
 import { useAuth } from "../lib/useAuth";
 import { formatDate, formatMbps } from "../lib/format";
@@ -39,12 +39,12 @@ export function SpeedTestWidget({ place, placeId: placeIdProp, initialStats, ini
   const placeLng = place?.longitude ?? null;
   const hasCoords = placeLat != null && placeLng != null && Number.isFinite(Number(placeLat)) && Number.isFinite(Number(placeLng));
   // approvedSsids: dari props atau dari place.wifi_credentials
-  const rawApproved = approvedSsidsProp ?? place?.wifi_credentials ?? [];
-  const approvedSsids = Array.isArray(rawApproved)
-    ? rawApproved.map((c) => (typeof c === "string" ? c : c.ssid)).filter(Boolean)
-    : [];
-  // fallback legacy single ssid if no wifi_credentials table
-  const effectiveSsids = approvedSsids.length ? approvedSsids : (place?.wifi_ssid ? [place.wifi_ssid] : []);
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization -- stabilize SSID list identity, deps are exact fields
+  const effectiveSsids = useMemo(() => {
+    const raw = approvedSsidsProp ?? place?.wifi_credentials ?? [];
+    const list = Array.isArray(raw) ? raw.map((c) => (typeof c === "string" ? c : c.ssid)).filter(Boolean) : [];
+    return list.length ? list : (place?.wifi_ssid ? [place.wifi_ssid] : []);
+  }, [approvedSsidsProp, place?.wifi_credentials, place?.wifi_ssid]);
 
   const [selectedSsid, setSelectedSsid] = useState("");
   const [confirmConnected, setConfirmConnected] = useState(false);
@@ -53,6 +53,7 @@ export function SpeedTestWidget({ place, placeId: placeIdProp, initialStats, ini
 
   // auto-select first ssid when list loads
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- auto-select single verified SSID on load
     if (!selectedSsid && effectiveSsids.length === 1) setSelectedSsid(effectiveSsids[0]);
   }, [effectiveSsids, selectedSsid]);
 

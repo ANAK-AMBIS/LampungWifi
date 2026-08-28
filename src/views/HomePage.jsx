@@ -1,14 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { getPlaces } from "../api";
-import {
-  categoryOptions,
-  categoryLabels,
-  quickFilters,
-} from "../lib/constants";
+import { categoryOptions, categoryLabels } from "../lib/constants";
 import {
   InfoBanner,
   LoadingGrid,
@@ -17,8 +12,6 @@ import {
 } from "../components/ui";
 
 export function HomePage({ initialFeatured }) {
-  const router = useRouter();
-  const [search, setSearch] = useState("");
   const [featured, setFeatured] = useState(initialFeatured);
 
   useEffect(() => {
@@ -36,16 +29,8 @@ export function HomePage({ initialFeatured }) {
       })();
       return () => { active = false; };
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fallback fetch once when initialFeatured empty/error
   }, []);
-
-  function handleHeroSubmit(event) {
-    event.preventDefault();
-    const params = new URLSearchParams();
-    if (search.trim()) {
-      params.set("q", search.trim());
-    }
-    router.push(`/places${params.toString() ? `?${params.toString()}` : ""}`);
-  }
 
   return (
     <main>

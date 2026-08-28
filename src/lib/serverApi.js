@@ -25,7 +25,7 @@ async function request(path, params, tags = []) {
   } catch (e) {
     // surface fetch/network errors with URL hint
     if (e.message?.includes("fetch failed") || e.message?.includes("ECONNREFUSED")) {
-      throw new Error(`API tidak terjangkau (${API_SERVER_URL}${path}) - pastikan server nyala (npm run dev). Detail: ${e.message}`);
+      throw new Error(`API tidak terjangkau (${API_SERVER_URL}${path}) - pastikan server nyala (npm run dev). Detail: ${e.message}`, { cause: e });
     }
     throw e;
   }
