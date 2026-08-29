@@ -20,7 +20,7 @@ export function SubmitPage() {
               {legalRules.map((rule, index) => (
                 <article key={rule} className="policy-list__item">
                   <span className="policy-list__number">
-                    {String(index + 1).padStart(2, "0")}
+                    {index + 1}
                   </span>
                   <p>{rule}</p>
                 </article>

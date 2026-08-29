@@ -5,8 +5,8 @@ import { getSpeedHistory, saveSpeedResult } from "../api";
 import { useAuth } from "../lib/useAuth";
 import { formatDate, formatMbps } from "../lib/format";
 import { haversineMeters, formatDistance, getCurrentPosition } from "../lib/geo";
-import { InfoBanner, SectionHeader, StatusPill, MetricTile } from "./ui";
-import { LoginGate } from "./LoginGate";
+import { InfoBanner, SectionHeader, MetricTile, EmptyState } from "./ui";
+import { SelectField } from "./FormControls";
 
 // kuota ringkas ~35-45MB, tanpa packetLoss & tanpa 100MB+ chunks
 const COMPACT_MEASUREMENTS = [
@@ -312,54 +312,64 @@ export function SpeedTestWidget({ place, placeId: placeIdProp, initialStats, ini
       <SectionHeader
         title="Speedtest Cloudflare"
         description={`Hanya bisa di ${formatDistance(MAX_DISTANCE_M)} dari lokasi & harus terhubung ke SSID terverifikasi. Kuota ~40 MB. Hasil masuk avg 30 hari.`}
-        action={stats ? <StatusPill tone="muted">{stats.count ?? 0} tes (30h)</StatusPill> : null}
+        action={
+          stats ? (
+            <span className="section-header__meta">
+              {stats.count ?? 0} tes (30h)
+            </span>
+          ) : null
+        }
       />
 
       {/* SSID + Geofence hygiene */}
-      <div style={{ display: "grid", gap: 10, marginBottom: 12, padding: 12, border: "1px solid #e5e7eb", borderRadius: 8, background: "#f9fafb" }}>
-        <div style={{ fontWeight: 600, fontSize: 13 }}>Verifikasi lokasi & WiFi (wajib)</div>
+      <div className="speedtest-gate">
+        <div className="speedtest-gate__title">Verifikasi lokasi & WiFi (wajib)</div>
 
         {!hasCoords ? (
           <InfoBanner tone="danger">Koordinat tempat belum diatur — speedtest diblok. Admin perlu isi latitude/longitude.</InfoBanner>
         ) : null}
 
         {effectiveSsids.length === 0 ? (
-          <InfoBanner tone="danger">Belum ada SSID terverifikasi untuk lokasi ini — speedtest diblok. Admin perlu approve SSID dulu.</InfoBanner>
+          <EmptyState title="Belum ada SSID terverifikasi." description="Jadilah yang pertama menambahkan SSID + password untuk lokasi ini." />
         ) : (
           <>
-            <label className="field">
+            <div className="field">
               <span>SSID yang kamu pakai sekarang *</span>
-              <select value={selectedSsid} onChange={(e) => setSelectedSsid(e.target.value)} required>
-                <option value="">— Pilih SSID —</option>
-                {effectiveSsids.map((s) => <option key={s} value={s}>{s}</option>)}
-              </select>
-              <small style={{ color: "#6b7280" }}>Hanya SSID terverifikasi untuk {place?.name ?? "lokasi ini"}: {effectiveSsids.join(", ")}</small>
-            </label>
-            <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13 }}>
+              <SelectField
+                name="ssid"
+                value={selectedSsid}
+                onChange={(e) => setSelectedSsid(e.target.value)}
+                placeholder="— Pilih SSID —"
+                allowEmpty
+                options={effectiveSsids.map((s) => ({ value: s, label: s }))}
+              />
+              <small className="speedtest-gate__hint">Hanya SSID terverifikasi untuk {place?.name ?? "lokasi ini"}: {effectiveSsids.join(", ")}</small>
+            </div>
+            <label className="speedtest-gate__check">
               <input type="checkbox" checked={confirmConnected} onChange={(e) => setConfirmConnected(e.target.checked)} />
               <span>Saya terhubung ke <strong>{selectedSsid || "SSID terpilih"}</strong> sekarang</span>
             </label>
           </>
         )}
 
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+        <div className="speedtest-gate__row">
           <button type="button" className="button button--ghost button--small" onClick={checkLocation} disabled={checkingGeo || !hasCoords || !auth.user}>
             {checkingGeo ? "Memeriksa..." : geo.status === "ok" ? "Cek ulang lokasi" : "Cek lokasi"}
           </button>
           {geo.status !== "idle" ? (
-            <small style={{ color: geo.status === "ok" ? "#059669" : geo.status === "out" || geo.status === "error" ? "#dc2626" : "#6b7280" }}>
+            <small className={`speedtest-gate__status ${geo.status === "ok" ? "speedtest-gate__status--ok" : geo.status === "out" || geo.status === "error" ? "speedtest-gate__status--bad" : ""}`}>
               {geo.status === "checking" ? "Memeriksa lokasi..." : null}
               {geo.status === "ok" ? `✓ ${formatDistance(geo.distance)} dari lokasi (±${geo.accuracy != null ? Math.round(geo.accuracy) + "m" : "?"})` : null}
               {geo.status === "out" ? `✗ ${formatDistance(geo.distance)} — di luar ${formatDistance(MAX_DISTANCE_M)}` : null}
               {geo.status === "error" ? `✗ ${geo.error}` : null}
             </small>
-          ) : <small style={{ color: "#6b7280" }}>Wajib dalam {formatDistance(MAX_DISTANCE_M)} dari lokasi. Aktifkan GPS & izin lokasi.</small>}
+          ) : <small className="speedtest-gate__status">Wajib dalam {formatDistance(MAX_DISTANCE_M)} dari lokasi. Aktifkan GPS & izin lokasi.</small>}
         </div>
-        {geo.accuracy != null && geo.accuracy > 80 ? <small style={{ color: "#d97706" }}>Akurasi rendah (±{Math.round(geo.accuracy)}m). Coba di luar ruangan / dekat jendela untuk hasil akurat.</small> : null}
+        {geo.accuracy != null && geo.accuracy > 80 ? <small className="speedtest-gate__status speedtest-gate__status--warn">Akurasi rendah (±{Math.round(geo.accuracy)}m). Coba di luar ruangan / dekat jendela untuk hasil akurat.</small> : null}
       </div>
 
       {/* Live gauge */}
-      <div className="quality-grid" style={{ marginBottom: 12 }}>
+      <div className="quality-grid speedtest-gauge">
         <MetricTile label="Download" value={dlDisplay} />
         <MetricTile label="Upload" value={ulDisplay} />
         <MetricTile label="Ping" value={pingDisplay} />
@@ -368,28 +378,30 @@ export function SpeedTestWidget({ place, placeId: placeIdProp, initialStats, ini
 
       {/* Progress */}
       {status !== "idle" ? (
-        <div style={{ marginBottom: 12 }}>
-          <div style={{ height: 8, background: "#e5e7eb", borderRadius: 999, overflow: "hidden" }}>
-            <div style={{ width: `${live.progress}%`, height: "100%", background: status === "error" ? "#ef4444" : status === "finished" ? "#10b981" : "#3b82f6", transition: "width 0.4s" }} />
+        <div className="speedtest-progress">
+          <div className="speedtest-progress__track">
+            <div
+              className={`speedtest-progress__bar ${status === "error" ? "speedtest-progress__bar--error" : status === "finished" ? "speedtest-progress__bar--done" : ""}`}
+              style={{ width: `${live.progress}%` }}
+            />
           </div>
-          <small style={{ color: "#6b7280" }}>{live.phase} {isRunning ? `${live.progress}%` : ""} {status === "paused" ? "— dijeda" : ""} {status === "checking" ? "— memeriksa lokasi" : ""}</small>
+          <small className="speedtest-progress__label">{live.phase} {isRunning ? `${live.progress}%` : ""} {status === "paused" ? "— dijeda" : ""} {status === "checking" ? "— memeriksa lokasi" : ""}</small>
         </div>
       ) : null}
 
       {/* 30d avg */}
       {stats ? (
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
-          <StatusPill tone="info">Avg 30h: {stats.avg_download != null ? `${formatMbps(stats.avg_download)} ↓` : "—"} </StatusPill>
-          <StatusPill tone="info">{stats.avg_upload != null ? `${formatMbps(stats.avg_upload)} ↑` : "— up"}</StatusPill>
-          <StatusPill tone="muted">{stats.avg_ping != null ? `${Math.round(stats.avg_ping)} ms` : "— ping"}</StatusPill>
-          <small style={{ color: "#6b7280", alignSelf: "center" }}>{stats.total != null ? `${stats.total} total` : ""} {stats.last_test_at ? `• terakhir ${formatDate(stats.last_test_at)}` : ""}</small>
+        <div className="speedtest-stats">
+          <span className="speedtest-stats__item speedtest-stats__item--dl">Avg 30h: {stats.avg_download != null ? `${formatMbps(stats.avg_download)} ↓` : "—"}</span>
+          <span className="speedtest-stats__item speedtest-stats__item--ul">{stats.avg_upload != null ? `${formatMbps(stats.avg_upload)} ↑` : "— up"}</span>
+          <span className="speedtest-stats__item">{stats.avg_ping != null ? `${Math.round(stats.avg_ping)} ms` : "— ping"}</span>
+          <small className="speedtest-stats__meta">{stats.total != null ? `${stats.total} total` : ""} {stats.last_test_at ? `• terakhir ${formatDate(stats.last_test_at)}` : ""}</small>
         </div>
       ) : null}
 
       {msg.text ? <InfoBanner tone={msg.tone} style={{ marginBottom: 12 }}>{msg.text}</InfoBanner> : null}
-      <LoginGate {...auth} />
 
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+      <div className="speedtest-actions">
         {status === "idle" || status === "finished" || status === "error" || status === "checking" ? (
           <button
             type="button"
@@ -409,33 +421,37 @@ export function SpeedTestWidget({ place, placeId: placeIdProp, initialStats, ini
         ) : null}
         {status === "finished" ? <button type="button" className="button button--ghost" onClick={handleRestart}>Tes Ulang</button> : null}
       </div>
-      <small style={{ color: "#6b7280" }}>Tes butuh ~25 detik & ~40 MB. Hasil dikirim ke Cloudflare untuk agregasi (sesuai TOS Cloudflare) dan disimpan di BalamWiFi. Batas 3 tes/jam/lokasi. Lokasi & SSID diverifikasi & disimpan untuk audit.</small>
+      <small className="speedtest-note">Tes butuh ~25 detik & ~40 MB. Hasil dikirim ke Cloudflare untuk agregasi (sesuai TOS Cloudflare) dan disimpan di BalamWiFi. Batas 3 tes/jam/lokasi. Lokasi & SSID diverifikasi & disimpan untuk audit.</small>
 
       {/* History */}
-      <div style={{ marginTop: 16 }}>
-        <h4 style={{ margin: "0 0 8px", fontSize: 14 }}>Riwayat tes lokasi ini</h4>
+      <div className="speedtest-history">
+        <h4 className="speedtest-history__head">Riwayat tes lokasi ini</h4>
         {history.length ? (
           <>
-            <div style={{ display: "grid", gap: 8 }}>
+            <div className="speedtest-history__list">
               {history.map((t) => (
-                <div key={t.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", border: "1px solid #e5e7eb", borderRadius: 8, background: "#f9fafb" }}>
-                  <div>
-                    <strong>{formatMbps(t.download_mbps)} ↓</strong> <span style={{ color: "#6b7280" }}>/ {t.upload_mbps != null ? `${formatMbps(t.upload_mbps)} ↑` : "—"}</span> <StatusPill tone="muted">{t.ping_ms != null ? `${t.ping_ms} ms` : "—"}</StatusPill> {t.jitter_ms != null ? <StatusPill tone="muted">±{Number(t.jitter_ms).toFixed(1)} ms</StatusPill> : null}
-                    {t.claimed_ssid ? <StatusPill tone="info">{t.claimed_ssid}</StatusPill> : null} {t.distance_m != null ? <StatusPill tone="muted">{formatDistance(t.distance_m)}</StatusPill> : null}
-                    <div style={{ fontSize: 12, color: "#6b7280" }}>{t.tested_by_name} • {formatDate(t.created_at)} {t.duration_ms ? `• ${Math.round(t.duration_ms / 1000)}s` : ""}</div>
+                <div key={t.id} className="speedtest-history__row">
+                  <div className="speedtest-history__values">
+                    <strong>{formatMbps(t.download_mbps)} ↓</strong>
+                    <span>/ {t.upload_mbps != null ? `${formatMbps(t.upload_mbps)} ↑` : "—"}</span>
+                    <span>{t.ping_ms != null ? `${t.ping_ms} ms` : "—"}</span>
+                    {t.jitter_ms != null ? <span>±{Number(t.jitter_ms).toFixed(1)} ms</span> : null}
+                    {t.claimed_ssid ? <span className="speedtest-history__ssid">{t.claimed_ssid}</span> : null}
+                    {t.distance_m != null ? <span>{formatDistance(t.distance_m)}</span> : null}
+                    <div className="speedtest-history__meta">{t.tested_by_name} • {formatDate(t.created_at)} {t.duration_ms ? `• ${Math.round(t.duration_ms / 1000)}s` : ""}</div>
                   </div>
-                  <small style={{ color: "#9ca3af" }}>#{t.id}</small>
+                  <small className="speedtest-history__id">#{t.id}</small>
                 </div>
               ))}
             </div>
             {stats && stats.total > 5 ? (
-              <button type="button" className="button button--ghost button--small" style={{ marginTop: 8 }} onClick={() => setShowAll((v) => !v)}>
+              <button type="button" className="button button--ghost button--small speedtest-history__toggle" onClick={() => setShowAll((v) => !v)}>
                 {showAll ? "Tampilkan 5 saja" : `Lihat semua (${stats.total})`}
               </button>
             ) : null}
           </>
         ) : (
-          <p style={{ color: "#6b7280", fontSize: 13 }}>Belum ada tes. Jadilah yang pertama!</p>
+          <p className="speedtest-empty">Belum ada tes. Jadilah yang pertama!</p>
         )}
       </div>
     </article>

@@ -10,7 +10,7 @@ export function FilterSelect({ label, name, defaultValue, options, open, onOpen 
     <div className="field filter-field--select custom-select">
       <span>{label}</span>
       <input type="hidden" name={name} value={value} />
-      <button type="button" className="custom-select__button" onClick={() => onOpen()}>
+      <button type="button" className="custom-select__button" onClick={() => onOpen(true)}>
         {selected.label}
       </button>
       {open ? (
