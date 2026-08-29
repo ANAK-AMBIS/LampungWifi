@@ -154,7 +154,12 @@ const placeSubmissionSchema = z
     operatingHours: z.string().max(180).optional().nullable(),
     imageTone: z.string().max(40).optional().nullable(),
     imageUrl: z
-      .union([z.string().url().max(500), z.literal(""), z.null()])
+      .union([
+        z.string().url().max(500),
+        z.string().startsWith("data:image/").max(900_000),
+        z.literal(""),
+        z.null(),
+      ])
       .optional(),
     submitterName: z.string().min(2).max(80),
     submitterEmail: z

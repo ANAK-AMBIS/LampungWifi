@@ -13,7 +13,9 @@ import {
   passwordSourceOptions,
 } from "../lib/constants";
 import { InfoBanner, SectionHeader } from "./ui";
-import { LoginGate } from "./LoginGate";
+import { SelectField } from "./FormControls";
+import { LocationPicker } from "./LocationPicker";
+import { compressReviewImage } from "../lib/browserImage";
 import { useAuth } from "../lib/useAuth";
 
 export function SubmitPlaceForm() {
@@ -28,6 +30,42 @@ export function SubmitPlaceForm() {
       ...current,
       [name]: type === "checkbox" ? checked : value,
     }));
+  }
+
+  function handleLocationPick({ latitude, longitude, district, address }) {
+    setForm((current) => ({
+      ...current,
+      latitude: String(latitude),
+      longitude: String(longitude),
+      district: district || current.district,
+      address: address || current.address,
+    }));
+  }
+
+  async function handleImageChange(event) {
+    const file = event.target.files?.[0];
+    if (!file) {
+      setForm((current) => ({ ...current, imageUrl: "" }));
+      return;
+    }
+    if (!file.type.startsWith("image/")) {
+      setStatus({ tone: "danger", text: "File harus berupa gambar." });
+      event.target.value = "";
+      return;
+    }
+    try {
+      const imageUrl = await compressReviewImage(file);
+      if (imageUrl.length > 900_000) {
+        setStatus({ tone: "danger", text: "Foto terlalu besar setelah dikompresi, coba foto lain." });
+        setForm((current) => ({ ...current, imageUrl: "" }));
+        event.target.value = "";
+        return;
+      }
+      setStatus({ tone: "", text: "" });
+      setForm((current) => ({ ...current, imageUrl }));
+    } catch (error) {
+      setStatus({ tone: "danger", text: error.message });
+    }
   }
 
   async function handleSubmit(event) {
@@ -73,14 +111,14 @@ export function SubmitPlaceForm() {
       {status.text ? (
         <InfoBanner tone={status.tone}>{status.text}</InfoBanner>
       ) : null}
-      <LoginGate {...auth} />
       <form className="submit-form" onSubmit={handleSubmit}>
         {/* Section 1: Informasi Utama */}
         <div className="form-section">
           <div className="form-section-header">
             <h3 className="form-section-title">Informasi Utama</h3>
-            <p className="form-section-description">Detail lokasi dan jenis tempat WiFi publik berada.</p>
+            <p className="form-section-description">Cari lokasi di peta atau gunakan lokasi kamu — kecamatan, alamat, dan koordinat terisi otomatis.</p>
           </div>
+          <LocationPicker onPick={handleLocationPick} />
           <div className="submit-form__grid">
             <label className="field">
               <span>Nama tempat</span>
@@ -113,34 +151,30 @@ export function SubmitPlaceForm() {
           </label>
 
           <div className="submit-form__grid">
-            <label className="field">
+            <div className="field">
               <span>Kategori</span>
-              <select
+              <SelectField
                 name="category"
                 value={form.category}
                 onChange={updateField}
-              >
-                {categoryOptions.map((item) => (
-                  <option key={item} value={item}>
-                    {localizeLabel(item)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="field">
+                options={categoryOptions.map((item) => ({
+                  value: item,
+                  label: localizeLabel(item),
+                }))}
+              />
+            </div>
+            <div className="field">
               <span>Jenis akses</span>
-              <select
+              <SelectField
                 name="wifiAccessType"
                 value={form.wifiAccessType}
                 onChange={updateField}
-              >
-                {accessTypeOptions.map((item) => (
-                  <option key={item} value={item}>
-                    {localizeLabel(item)}
-                  </option>
-                ))}
-              </select>
-            </label>
+                options={accessTypeOptions.map((item) => ({
+                  value: item,
+                  label: localizeLabel(item),
+                }))}
+              />
+            </div>
           </div>
 
           <div className="submit-form__grid">
@@ -151,6 +185,8 @@ export function SubmitPlaceForm() {
                 value={form.latitude}
                 onChange={updateField}
                 placeholder="-5.38"
+                readOnly
+                title="Terisi otomatis dari peta"
               />
             </label>
             <label className="field">
@@ -160,6 +196,8 @@ export function SubmitPlaceForm() {
                 value={form.longitude}
                 onChange={updateField}
                 placeholder="105.25"
+                readOnly
+                title="Terisi otomatis dari peta"
               />
             </label>
           </div>
@@ -244,14 +282,15 @@ export function SubmitPlaceForm() {
                 maxLength={32}
               />
             </label>
-            <label className="field">
+            <div className="field">
               <span>Band</span>
-              <select name="wifiBand" value={form.wifiBand} onChange={updateField}>
-                {bandOptions.map((b) => (
-                  <option key={b} value={b}>{b}</option>
-                ))}
-              </select>
-            </label>
+              <SelectField
+                name="wifiBand"
+                value={form.wifiBand}
+                onChange={updateField}
+                options={bandOptions.map((b) => ({ value: b, label: b }))}
+              />
+            </div>
             <label className="field">
               <span>Password WiFi publik</span>
               <input
@@ -263,21 +302,20 @@ export function SubmitPlaceForm() {
             </label>
           </div>
           <div className="submit-form__grid">
-            <label className="field">
+            <div className="field">
               <span>Sumber password</span>
-              <select
+              <SelectField
                 name="passwordSource"
                 value={form.passwordSource}
                 onChange={updateField}
-              >
-                <option value="">Pilih sumber</option>
-                {passwordSourceOptions.map((item) => (
-                  <option key={item} value={item}>
-                    {localizeLabel(item)}
-                  </option>
-                ))}
-              </select>
-            </label>
+                placeholder="Pilih sumber"
+                allowEmpty
+                options={passwordSourceOptions.map((item) => ({
+                  value: item,
+                  label: localizeLabel(item),
+                }))}
+              />
+            </div>
             <label className="toggle-card" style={{ alignSelf: "end" }}>
               <input type="checkbox" name="isHype" checked={form.isHype} onChange={updateField} />
               <div><strong>Tempat hype</strong><span>Password hanya tampil jika login.</span></div>
@@ -370,31 +408,30 @@ export function SubmitPlaceForm() {
           </label>
 
           <div className="submit-form__grid">
-            <label className="field">
+            <div className="field">
               <span>Warna tema gambar</span>
-              <select
+              <SelectField
                 name="imageTone"
                 value={form.imageTone}
                 onChange={updateField}
-              >
-                {imageToneOptions.map((tone) => (
-                  <option key={tone} value={tone}>
-                    {imageToneLabels[tone] || tone}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="field">
-              <span>URL gambar</span>
-              <input
-                type="url"
-                name="imageUrl"
-                value={form.imageUrl}
-                onChange={updateField}
-                placeholder="https://i.ibb.co/.../workspace-lampung.jpg"
+                options={imageToneOptions.map((tone) => ({
+                  value: tone,
+                  label: imageToneLabels[tone] || tone,
+                }))}
               />
+            </div>
+            <label className="field">
+              <span>Foto tempat</span>
+              <input type="file" accept="image/*" onChange={handleImageChange} />
             </label>
           </div>
+          {form.imageUrl ? (
+            <img
+              className="submit-form__preview"
+              src={form.imageUrl}
+              alt="Preview foto tempat"
+            />
+          ) : null}
         </div>
 
         <button

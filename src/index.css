@@ -17,6 +17,9 @@
     --border-color-hover: #2d2018; /* Rich espresso highlight border on hover */
     --border-accent: #2d2018;   /* Espresso border */
 
+    /* Accents - approved semantic colors */
+    --rating-amber: #b07d2b;    /* Star rating warm amber */
+
     /* Shadows - Soft and Premium */
     --shadow-sm: 0 1px 2px 0 rgba(45, 32, 24, 0.04);
     --shadow-md: 0 4px 16px -2px rgba(45, 32, 24, 0.04), 0 2px 6px -1px rgba(45, 32, 24, 0.02);
@@ -95,64 +98,55 @@ button:disabled {
 }
 
 .submit-copy {
-    position: sticky;
-    top: 96px;
     align-self: start;
     display: flex !important;
     flex-direction: column;
-    gap: 28px;
+    gap: 24px;
 }
 
 .submit-copy__guidelines {
-    background: var(--bg-secondary);
+    background: var(--bg-tertiary);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-lg);
-    padding: 24px;
+    padding: 18px 20px;
     display: flex;
     flex-direction: column;
-    gap: 20px;
-    box-shadow: var(--shadow-sm);
+    gap: 14px;
 }
 
 .submit-copy__guidelines h3 {
     margin: 0;
-    font-size: 1.2rem;
+    font-size: 1.05rem;
     font-weight: 700;
-    letter-spacing: -0.025em;
+    letter-spacing: -0.02em;
     color: var(--text-primary);
 }
 
 .submit-copy .policy-list {
     display: flex !important;
     flex-direction: column;
-    gap: 16px;
+    gap: 12px;
 }
 
 .submit-copy .policy-list__item {
     display: flex !important;
-    gap: 12px;
+    gap: 10px;
     align-items: flex-start;
 }
 
 .submit-copy .policy-list__number {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 24px;
-    height: 24px;
-    border-radius: var(--radius-full);
-    background: var(--bg-tertiary);
-    color: var(--text-secondary);
-    font-size: 0.75rem;
-    font-weight: 700;
+    font-size: 0.8rem;
+    font-weight: 800;
+    color: var(--bg-accent);
     flex-shrink: 0;
-    margin-top: 2px;
+    min-width: 16px;
+    margin-top: 3px;
 }
 
 .submit-copy .policy-list__item p {
     margin: 0;
-    font-size: 0.925rem;
-    line-height: 1.5;
+    font-size: 0.9rem;
+    line-height: 1.55;
     color: var(--text-secondary);
 }
 

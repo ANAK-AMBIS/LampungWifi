@@ -11,6 +11,7 @@ import {
 import { filtersToQuery } from "../lib/filters";
 import { localizeSpeed } from "../lib/pageLabels";
 import {
+  CategoryIcon,
   EmptyState,
   InfoBanner,
   LoadingGrid,
@@ -62,6 +63,16 @@ export function PlacesPage({
   const [openSelect, setOpenSelect] = useState("");
   const [fetchId, setFetchId] = useState(0);
   const isFirstRender = useRef(true);
+  const [prevInitialFilters, setPrevInitialFilters] = useState(initialFilters);
+
+  // Sinkronkan saat URL berubah (back/forward atau router.replace) hanya kalau
+  // nilainya benar-benar beda — mencegah refetch ganda / flash loading.
+  if (initialFilters !== prevInitialFilters) {
+    setPrevInitialFilters(initialFilters);
+    if (JSON.stringify(initialFilters) !== JSON.stringify(filters)) {
+      setFilters(initialFilters);
+    }
+  }
 
   const hasAdvancedFilters =
     filters.category !== "all" ||
@@ -79,11 +90,6 @@ export function PlacesPage({
   const hasNext = offset + pageSize < state.total;
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- sync URL query params from server to client state
-    setFilters(initialFilters);
-  }, [initialFilters]);
-
-  useEffect(() => {
     if (isFirstRender.current) {
       isFirstRender.current = false;
       return;
@@ -93,7 +99,13 @@ export function PlacesPage({
     const controller = new AbortController();
 
     async function load() {
-      setState((current) => ({ ...current, loading: true, error: "" }));
+      // Stale-while-revalidate: grid lama tetap tampil selama refetch
+      // supaya tidak ada flash LoadingGrid saat URL berganti.
+      setState((current) => ({
+        ...current,
+        loading: current.items.length === 0,
+        error: "",
+      }));
       try {
         const query = filtersToQuery(filters);
         const response = await getPlaces({
@@ -148,14 +160,12 @@ export function PlacesPage({
     router.replace(`/places${qs ? `?${qs}` : ""}`, { scroll: false });
     setFilters(nextFilters);
     setFetchId((id) => id + 1);
-    setShowFilters(false);
   }
 
   function resetFilters() {
     router.replace("/places", { scroll: false });
     setFilters({ ...defaultFilters });
     setFetchId((id) => id + 1);
-    setShowFilters(false);
   }
 
   function goToPage(direction) {
@@ -177,7 +187,6 @@ export function PlacesPage({
       <section className="section section--list">
         <div className="section-header" style={{ marginBottom: "24px" }}>
           <div>
-            <span className="eyebrow">Direktori WiFi</span>
             <h1>{filters.q ? `Pencarian: ${filters.q}` : "Temukan WiFi Terbaik"}</h1>
             <p>
               {filters.q
@@ -189,9 +198,17 @@ export function PlacesPage({
 
         {/* Results header */}
         <div className="places-header">
-          <p className="results-count">
-            {state.loading ? "Memuat..." : `${state.total} tempat cocok`}
-          </p>
+          <div>
+            {filters.category !== "all" ? (
+              <span className="places-category-heading">
+                <CategoryIcon category={filters.category} size={20} />
+                {localizeLabel(filters.category)}
+              </span>
+            ) : null}
+            <p className="results-count">
+              {state.loading ? "Memuat..." : `${state.total} tempat cocok`}
+            </p>
+          </div>
           <button
             type="button"
             className={`button button--ghost button--small places-filter-toggle${showFilters ? " places-filter-toggle--active" : ""}`}
@@ -214,11 +231,6 @@ export function PlacesPage({
             <StatusPill tone="success">Colokan</StatusPill>
           ) : null}
           {filters.open24 ? <StatusPill tone="warning">24/7</StatusPill> : null}
-          {filters.category !== "all" ? (
-            <StatusPill tone="muted">
-              {localizeLabel(filters.category)}
-            </StatusPill>
-          ) : null}
           {filters.accessType !== "all" ? (
             <StatusPill tone="muted">
               {localizeLabel(filters.accessType)}
