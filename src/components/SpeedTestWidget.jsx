@@ -853,7 +853,7 @@ export function SpeedTestWidget({ place, placeId: placeIdProp, initialStats, ini
                 {live.dl !== null ? (
                   formatMbps(live.dl)
                 ) : (
-                  <span className="cf-value-placeholder">—</span>
+                  <span className="cf-value-placeholder">0.00</span>
                 )}
                 <span className="cf-readout__unit">Mbps</span>
               </div>
@@ -864,7 +864,7 @@ export function SpeedTestWidget({ place, placeId: placeIdProp, initialStats, ini
                 {live.ul !== null ? (
                   formatMbps(live.ul)
                 ) : (
-                  <span className="cf-value-placeholder">—</span>
+                  <span className="cf-value-placeholder">0.00</span>
                 )}
                 <span className="cf-readout__unit">Mbps</span>
               </div>
