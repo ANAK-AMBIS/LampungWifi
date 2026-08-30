@@ -12,16 +12,17 @@ import {
   localizeLabel,
   passwordSourceOptions,
 } from "../lib/constants";
-import { InfoBanner, SectionHeader } from "./ui";
+import { SectionHeader } from "./ui";
 import { SelectField } from "./FormControls";
 import { LocationPicker } from "./LocationPicker";
 import { compressReviewImage } from "../lib/browserImage";
 import { useAuth } from "../lib/useAuth";
+import { useToast } from "./Toast";
 
 export function SubmitPlaceForm() {
   const auth = useAuth();
+  const toast = useToast();
   const [form, setForm] = useState(defaultSubmissionForm);
-  const [status, setStatus] = useState({ tone: "", text: "" });
   const [submitting, setSubmitting] = useState(false);
 
   function updateField(event) {
@@ -49,36 +50,31 @@ export function SubmitPlaceForm() {
       return;
     }
     if (!file.type.startsWith("image/")) {
-      setStatus({ tone: "danger", text: "File harus berupa gambar." });
+      toast.error("File harus berupa gambar.");
       event.target.value = "";
       return;
     }
     try {
       const imageUrl = await compressReviewImage(file);
       if (imageUrl.length > 900_000) {
-        setStatus({ tone: "danger", text: "Foto terlalu besar setelah dikompresi, coba foto lain." });
+        toast.error("Foto terlalu besar setelah dikompresi, coba foto lain.");
         setForm((current) => ({ ...current, imageUrl: "" }));
         event.target.value = "";
         return;
       }
-      setStatus({ tone: "", text: "" });
       setForm((current) => ({ ...current, imageUrl }));
     } catch (error) {
-      setStatus({ tone: "danger", text: error.message });
+      toast.error(error.message);
     }
   }
 
   async function handleSubmit(event) {
     event.preventDefault();
     if (!auth.user) {
-      setStatus({
-        tone: "danger",
-        text: "Login Google diperlukan sebelum mengirim tempat.",
-      });
+      toast.error("Login Google diperlukan sebelum mengirim tempat.");
       return;
     }
     setSubmitting(true);
-    setStatus({ tone: "", text: "" });
 
     try {
       await createPlace({
@@ -91,12 +87,11 @@ export function SubmitPlaceForm() {
       });
 
       setForm(defaultSubmissionForm);
-      setStatus({
-        tone: "success",
-        text: "Tempat terkirim ke antrean moderasi. Admin harus meninjau sebelum tampil publik.",
-      });
+      toast.success(
+        "Tempat terkirim ke antrean moderasi. Admin harus meninjau sebelum tampil publik."
+      );
     } catch (error) {
-      setStatus({ tone: "danger", text: error.message });
+      toast.error(error.message);
     } finally {
       setSubmitting(false);
     }
@@ -108,9 +103,6 @@ export function SubmitPlaceForm() {
         title="Detail tempat dan laporan kualitas awal"
         description="Password tetap opsional, tapi sumber wajib diisi saat password dibagikan."
       />
-      {status.text ? (
-        <InfoBanner tone={status.tone}>{status.text}</InfoBanner>
-      ) : null}
       <form className="submit-form" onSubmit={handleSubmit}>
         {/* Section 1: Informasi Utama */}
         <div className="form-section">

@@ -2,6 +2,7 @@ import "../src/index.css";
 import "../src/globals.css";
 import { AppShell } from "../src/components/AppShell.jsx";
 import { ErrorBoundary } from "../src/components/ErrorBoundary.jsx";
+import { ToastProvider } from "../src/components/Toast.jsx";
 
 export const metadata = {
   title: "BalamWiFi",
@@ -17,7 +18,9 @@ export default function RootLayout({ children }) {
       </head>
       <body>
         <ErrorBoundary>
-          <AppShell>{children}</AppShell>
+          <ToastProvider>
+            <AppShell>{children}</AppShell>
+          </ToastProvider>
         </ErrorBoundary>
       </body>
     </html>

@@ -20,6 +20,7 @@ import {
 } from "../components/ui";
 import { SpeedTestWidget } from "../components/SpeedTestWidget";
 import { SelectField } from "../components/FormControls";
+import { useToast } from "../components/Toast";
 import { compressReviewImage } from "../lib/browserImage";
 
 const ratingOptions = [1, 2, 3, 4, 5];
@@ -57,6 +58,7 @@ const emptyPlaceState = {
 
 export function PlaceDetailPage({ placeId, initialState = emptyPlaceState }) {
   const auth = useAuth();
+  const toast = useToast();
   const [state, setState] = useState(initialState);
   const [reviewForm, setReviewForm] = useState({
     authorName: "",
@@ -66,15 +68,12 @@ export function PlaceDetailPage({ placeId, initialState = emptyPlaceState }) {
     imageUrl: "",
     comment: "",
   });
-  const [reviewMessage, setReviewMessage] = useState({ tone: "", text: "" });
   const [sendingReview, setSendingReview] = useState(false);
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [wifiForm, setWifiForm] = useState({ ssid: "", band: "auto", password: "", passwordSource: "", accessNotes: "" });
-  const [wifiMessage, setWifiMessage] = useState({ tone: "", text: "" });
   const [sendingWifi, setSendingWifi] = useState(false);
   const [showAllWifi, setShowAllWifi] = useState(false);
   const [wifiRaters, setWifiRaters] = useState({}); // credId -> { rating, comment }
-  const [wifiRateMsg, setWifiRateMsg] = useState({ tone: "", text: "" });
   const [showWifiForm, setShowWifiForm] = useState(false);
   const [showReviewForm, setShowReviewForm] = useState(false);
 
@@ -90,10 +89,7 @@ export function PlaceDetailPage({ placeId, initialState = emptyPlaceState }) {
   function handleReviewSubmit(event) {
     event.preventDefault();
     if (!auth.user) {
-      setReviewMessage({
-        tone: "danger",
-        text: "Login Google diperlukan sebelum mengirim ulasan.",
-      });
+      toast.error("Login Google diperlukan sebelum mengirim ulasan.");
       return;
     }
     setShowRatingModal(true);
@@ -101,7 +97,6 @@ export function PlaceDetailPage({ placeId, initialState = emptyPlaceState }) {
 
   async function confirmReview() {
     setSendingReview(true);
-    setReviewMessage({ tone: "", text: "" });
     try {
       await createReview({
         placeId: Number(placeId),
@@ -114,9 +109,9 @@ export function PlaceDetailPage({ placeId, initialState = emptyPlaceState }) {
       await refreshPlace();
       setReviewForm({ authorName: "", reviewTitle: "", ratingSpeed: 5, ratingComfort: 5, imageUrl: "", comment: "" });
       setShowRatingModal(false);
-      setReviewMessage({ tone: "success", text: "Ulasan terkirim dan tampil di halaman." });
+      toast.success("Ulasan terkirim dan tampil di halaman.");
     } catch (error) {
-      setReviewMessage({ tone: "danger", text: error.message });
+      toast.error(error.message);
     } finally {
       setSendingReview(false);
     }
@@ -125,21 +120,20 @@ export function PlaceDetailPage({ placeId, initialState = emptyPlaceState }) {
   async function handleReviewImageChange(event) {
     const file = event.target.files?.[0];
     if (!file) { setReviewForm((c) => ({ ...c, imageUrl: "" })); return; }
-    if (!file.type.startsWith("image/")) { setReviewMessage({ tone: "danger", text: "File harus berupa gambar." }); event.target.value = ""; return; }
-    if (file.size > maxReviewImageBytes) { setReviewMessage({ tone: "danger", text: "Ukuran foto maksimal 350 KB." }); event.target.value = ""; return; }
+    if (!file.type.startsWith("image/")) { toast.error("File harus berupa gambar."); event.target.value = ""; return; }
+    if (file.size > maxReviewImageBytes) { toast.error("Ukuran foto maksimal 350 KB."); event.target.value = ""; return; }
     try {
       const imageUrl = await compressReviewImage(file);
-      setReviewMessage({ tone: "", text: "" });
       setReviewForm((c) => ({ ...c, imageUrl }));
-    } catch (error) { setReviewMessage({ tone: "danger", text: error.message }); }
+    } catch (error) { toast.error(error.message); }
   }
 
   async function handleWifiSubmit(event) {
     event.preventDefault();
-    if (!auth.user) { setWifiMessage({ tone: "danger", text: "Login Google diperlukan sebelum mengirim WiFi." }); return; }
-    if (!wifiForm.ssid.trim()) { setWifiMessage({ tone: "danger", text: "SSID wajib diisi." }); return; }
-    if (wifiForm.password && !wifiForm.passwordSource) { setWifiMessage({ tone: "danger", text: "Sumber password wajib saat password diisi." }); return; }
-    setSendingWifi(true); setWifiMessage({ tone: "", text: "" });
+    if (!auth.user) { toast.error("Login Google diperlukan sebelum mengirim WiFi."); return; }
+    if (!wifiForm.ssid.trim()) { toast.error("SSID wajib diisi."); return; }
+    if (wifiForm.password && !wifiForm.passwordSource) { toast.error("Sumber password wajib saat password diisi."); return; }
+    setSendingWifi(true);
     try {
       await submitWifiCredential(placeId, {
         ssid: wifiForm.ssid.trim(),
@@ -149,20 +143,20 @@ export function PlaceDetailPage({ placeId, initialState = emptyPlaceState }) {
       });
       await refreshPlace();
       setWifiForm({ ssid: "", band: "auto", password: "", passwordSource: "", accessNotes: "" });
-      setWifiMessage({ tone: "success", text: "WiFi terkirim, menunggu moderasi admin." });
-    } catch (error) { setWifiMessage({ tone: "danger", text: error.message }); } finally { setSendingWifi(false); }
+      toast.success("WiFi terkirim, menunggu moderasi admin.");
+    } catch (error) { toast.error(error.message); } finally { setSendingWifi(false); }
   }
 
   async function handleWifiRating(credId) {
     const draft = wifiRaters[credId] || { rating: 5, comment: "" };
-    if (!auth.user) { setWifiRateMsg({ tone: "danger", text: "Login diperlukan untuk rating WiFi." }); return; }
-    if (draft.comment && draft.comment.length > 0 && draft.comment.length < 12) { setWifiRateMsg({ tone: "danger", text: "Komentar rating minimal 12 karakter." }); return; }
+    if (!auth.user) { toast.error("Login diperlukan untuk rating WiFi."); return; }
+    if (draft.comment && draft.comment.length > 0 && draft.comment.length < 12) { toast.error("Komentar rating minimal 12 karakter."); return; }
     try {
       await rateWifiCredential(credId, { rating: Number(draft.rating), comment: draft.comment || null });
       await refreshPlace();
-      setWifiRateMsg({ tone: "success", text: "Rating WiFi terkirim!" });
+      toast.success("Rating WiFi terkirim!");
       setWifiRaters((c) => ({ ...c, [credId]: { rating: 5, comment: "" } }));
-    } catch (error) { setWifiRateMsg({ tone: "danger", text: error.message }); }
+    } catch (error) { toast.error(error.message); }
   }
 
   useEffect(() => {
@@ -369,7 +363,6 @@ export function PlaceDetailPage({ placeId, initialState = emptyPlaceState }) {
                       {showAllWifi ? "Tampilkan 2 saja" : `Lihat ${wifiCreds.length - 2} lainnya (${wifiCreds.length} total)`}
                     </button>
                   ) : null}
-                  {wifiRateMsg.text ? <InfoBanner tone={wifiRateMsg.tone} style={{ marginTop: 12 }}>{wifiRateMsg.text}</InfoBanner> : null}
                 </>
               )
             ) : (
@@ -398,7 +391,6 @@ export function PlaceDetailPage({ placeId, initialState = emptyPlaceState }) {
                       Tutup
                     </button>
                   </div>
-                  {wifiMessage.text ? <InfoBanner tone={wifiMessage.tone}>{wifiMessage.text}</InfoBanner> : null}
                   <form className="wifi-form" onSubmit={handleWifiSubmit} style={{ display: "grid", gap: 12, marginTop: 12 }}>
                     <div className="submit-form__grid">
                       <div className="field"><span>SSID *</span><input value={wifiForm.ssid} onChange={(e) => setWifiForm((c) => ({ ...c, ssid: e.target.value }))} placeholder="contoh: KopiJiwa-5G" required maxLength={32} /></div>
@@ -437,7 +429,6 @@ export function PlaceDetailPage({ placeId, initialState = emptyPlaceState }) {
                     Batal
                   </button>
                 </div>
-                {reviewMessage.text ? <InfoBanner tone={reviewMessage.tone}>{reviewMessage.text}</InfoBanner> : null}
                 <form className="review-form" onSubmit={handleReviewSubmit}>
                   <label className="field"><span>Komentar</span><textarea value={reviewForm.comment} onChange={(e) => setReviewForm((c) => ({ ...c, comment: e.target.value }))} placeholder="Ceritakan stabilitas koneksi, kebisingan, colokan, atau area duduk terbaik." required /></label>
                   <label className="field"><span>Foto ulasan</span><input type="file" accept="image/*" onChange={handleReviewImageChange} /></label>

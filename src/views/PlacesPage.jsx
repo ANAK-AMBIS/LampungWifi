@@ -16,7 +16,6 @@ import {
   InfoBanner,
   LoadingGrid,
   PlaceCard,
-  StatusPill,
 } from "../components/ui";
 import { FilterSelect } from "../components/FilterSelect";
 
@@ -168,6 +167,20 @@ export function PlacesPage({
     setFetchId((id) => id + 1);
   }
 
+  function clearFilter(key) {
+    const nextFilters = { ...filters, offset: 0 };
+    if (key === "speed") nextFilters.speed = "all";
+    else if (key === "accessType") nextFilters.accessType = "all";
+    else if (key === "outlets") nextFilters.outlets = false;
+    else if (key === "open24") nextFilters.open24 = false;
+    else if (key === "category") nextFilters.category = "all";
+    else if (key === "wifi") nextFilters.wifi = true;
+    const qs = buildQueryString(nextFilters);
+    router.replace(`/places${qs ? `?${qs}` : ""}`, { scroll: false });
+    setFilters(nextFilters);
+    setFetchId((id) => id + 1);
+  }
+
   function goToPage(direction) {
     const nextOffset =
       direction === "next" ? offset + pageSize : Math.max(0, offset - pageSize);
@@ -222,19 +235,47 @@ export function PlacesPage({
           </button>
         </div>
 
-        {/* Active filter pills */}
+        {/* Active filter tags */}
         <div className="active-filters">
           {filters.speed !== "all" ? (
-            <StatusPill tone="info">{localizeSpeed(filters.speed)}</StatusPill>
+            <button
+              type="button"
+              className="filter-tag"
+              onClick={() => clearFilter("speed")}
+            >
+              {localizeSpeed(filters.speed)}
+              <span className="filter-tag__x" aria-hidden="true">✕</span>
+            </button>
           ) : null}
           {filters.outlets ? (
-            <StatusPill tone="success">Colokan</StatusPill>
+            <button
+              type="button"
+              className="filter-tag"
+              onClick={() => clearFilter("outlets")}
+            >
+              Colokan
+              <span className="filter-tag__x" aria-hidden="true">✕</span>
+            </button>
           ) : null}
-          {filters.open24 ? <StatusPill tone="warning">24/7</StatusPill> : null}
+          {filters.open24 ? (
+            <button
+              type="button"
+              className="filter-tag"
+              onClick={() => clearFilter("open24")}
+            >
+              24/7
+              <span className="filter-tag__x" aria-hidden="true">✕</span>
+            </button>
+          ) : null}
           {filters.accessType !== "all" ? (
-            <StatusPill tone="muted">
+            <button
+              type="button"
+              className="filter-tag"
+              onClick={() => clearFilter("accessType")}
+            >
               {localizeLabel(filters.accessType)}
-            </StatusPill>
+              <span className="filter-tag__x" aria-hidden="true">✕</span>
+            </button>
           ) : null}
         </div>
 
