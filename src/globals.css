@@ -408,10 +408,10 @@
 }
 
 .detail-hero h1 {
-    max-width: 12ch;
+    max-width: 32ch;
     font-size: clamp(2.25rem, 5.4vw, 3.8rem);
     line-height: 0.98;
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
 }
 
 .section-header h1,
@@ -1898,9 +1898,28 @@
     font-weight: 600;
 }
 
+.detail-hero__grid {
+    display: grid;
+    gap: 12px;
+}
+
+@media (min-width: 720px) {
+    .detail-hero__grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 32px;
+        align-items: start;
+    }
+}
+
 .detail-hero__hours {
     margin-top: -8px;
     font-weight: 700;
+}
+
+.detail-hero__context {
+    font-size: 1.15rem;
+    color: var(--text-primary);
+    line-height: 1.6;
 }
 
 .detail-hero__location {
@@ -3073,6 +3092,8 @@
         position: sticky;
         top: 100px;
     }
+
+
 }
 
 .wifi-cred-list { display: grid; gap: 14px; }

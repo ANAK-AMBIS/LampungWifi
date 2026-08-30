@@ -75,6 +75,8 @@ export function PlaceDetailPage({ placeId, initialState = emptyPlaceState }) {
   const [showAllWifi, setShowAllWifi] = useState(false);
   const [wifiRaters, setWifiRaters] = useState({}); // credId -> { rating, comment }
   const [wifiRateMsg, setWifiRateMsg] = useState({ tone: "", text: "" });
+  const [showWifiForm, setShowWifiForm] = useState(false);
+  const [showReviewForm, setShowReviewForm] = useState(false);
 
   async function refreshPlace() {
     const refreshed = await getPlace(placeId);
@@ -224,25 +226,31 @@ export function PlaceDetailPage({ placeId, initialState = emptyPlaceState }) {
             </div>
             <div className="detail-hero__content">
               <h1>{place.name}</h1>
-              <p>{place.address}</p>
-              {isHype ? (
-                <div><strong>Tempat hype</strong><span> (password hanya tampil jika login).</span></div>
-              ) : null}
-              <p className="detail-hero__hours">{place.operating_hours || "Jam operasional belum tersedia."}</p>
-              <div className="detail-hero__meta">
-                <span>{place.district}</span>
-                <span className="detail-hero__meta-dot" aria-hidden="true">·</span>
-                <span className="detail-hero__meta-rating">★ {place.avg_rating.toFixed(1)}</span>
-                <span className="detail-hero__meta-dot" aria-hidden="true">·</span>
-                <span>{place.review_count} ulasan</span>
-                {place.wifi_ssid ? (
-                  <>
+              <div className="detail-hero__grid">
+                <div className="detail-hero__grid-left">
+                  <p>{place.address}</p>
+                  {isHype ? (
+                    <div><strong>Tempat hype</strong><span> (password hanya tampil jika login).</span></div>
+                  ) : null}
+                  <p className="detail-hero__hours">{place.operating_hours || "Jam operasional belum tersedia."}</p>
+                </div>
+                <div className="detail-hero__grid-right">
+                  <div className="detail-hero__meta">
+                    <span>{place.district}</span>
                     <span className="detail-hero__meta-dot" aria-hidden="true">·</span>
-                    <span>SSID {place.wifi_ssid}</span>
-                  </>
-                ) : null}
+                    <span className="detail-hero__meta-rating">★ {place.avg_rating.toFixed(1)}</span>
+                    <span className="detail-hero__meta-dot" aria-hidden="true">·</span>
+                    <span>{place.review_count} ulasan</span>
+                    {place.wifi_ssid ? (
+                      <>
+                        <span className="detail-hero__meta-dot" aria-hidden="true">·</span>
+                        <span>SSID {place.wifi_ssid}</span>
+                      </>
+                    ) : null}
+                  </div>
+                  {place.submitter_name ? <p className="contributor-credit">Dikontribusikan oleh {place.submitter_name}</p> : null}
+                </div>
               </div>
-              {place.submitter_name ? <p className="contributor-credit">Dikontribusikan oleh {place.submitter_name}</p> : null}
               <p className="detail-hero__context">{place.map_context || "Catatan lokasi dari kontributor belum ada."}</p>
               <div className="detail-hero__location">
                 <div className="map-card__visual"><div className="map-pin" /></div>
@@ -369,38 +377,86 @@ export function PlaceDetailPage({ placeId, initialState = emptyPlaceState }) {
             )}
 
             <div style={{ marginTop: 24 }}>
-              <SectionHeader title="Tambah SSID / Password" description="SSIDs bisa multi (2.4GHz/5GHz). Password butuh sumber. Masuk moderasi sebelum tampil publik." />
-              {wifiMessage.text ? <InfoBanner tone={wifiMessage.tone}>{wifiMessage.text}</InfoBanner> : null}
-              <form className="wifi-form" onSubmit={handleWifiSubmit} style={{ display: "grid", gap: 12, marginTop: 12 }}>
-                <div className="submit-form__grid">
-                  <div className="field"><span>SSID *</span><input value={wifiForm.ssid} onChange={(e) => setWifiForm((c) => ({ ...c, ssid: e.target.value }))} placeholder="contoh: KopiJiwa-5G" required maxLength={32} /></div>
-                  <div className="field"><span>Band</span><SelectField name="band" value={wifiForm.band} onChange={(e) => setWifiForm((c) => ({ ...c, band: e.target.value }))} options={bandOptions.map((b) => ({ value: b, label: b }))} /></div>
-                </div>
-                <div className="submit-form__grid">
-                  <div className="field"><span>Password (kosongkan jika open)</span><input value={wifiForm.password} onChange={(e) => setWifiForm((c) => ({ ...c, password: e.target.value }))} placeholder="Hanya jika publik / disetujui" /></div>
-                  <div className="field"><span>Sumber password * jika ada password</span><SelectField name="passwordSource" value={wifiForm.passwordSource} onChange={(e) => setWifiForm((c) => ({ ...c, passwordSource: e.target.value }))} placeholder="Pilih sumber" allowEmpty options={passwordSourceOptions.map((o) => ({ value: o, label: localizeLabel(o) }))} /></div>
-                </div>
-                <button type="submit" className="button button--primary" disabled={sendingWifi}>{sendingWifi ? "Mengirim..." : "Kirim WiFi untuk moderasi"}</button>
-              </form>
+              {!showWifiForm ? (
+                <button
+                  type="button"
+                  className="button button--ghost"
+                  onClick={() => setShowWifiForm(true)}
+                  style={{ width: "100%" }}
+                >
+                  Tambah SSID / Password Baru
+                </button>
+              ) : (
+                <>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <SectionHeader title="Tambah SSID / Password" description="SSIDs bisa multi (2.4GHz/5GHz). Password butuh sumber. Masuk moderasi sebelum tampil publik." />
+                    <button
+                      type="button"
+                      className="button button--ghost button--small"
+                      onClick={() => setShowWifiForm(false)}
+                    >
+                      Tutup
+                    </button>
+                  </div>
+                  {wifiMessage.text ? <InfoBanner tone={wifiMessage.tone}>{wifiMessage.text}</InfoBanner> : null}
+                  <form className="wifi-form" onSubmit={handleWifiSubmit} style={{ display: "grid", gap: 12, marginTop: 12 }}>
+                    <div className="submit-form__grid">
+                      <div className="field"><span>SSID *</span><input value={wifiForm.ssid} onChange={(e) => setWifiForm((c) => ({ ...c, ssid: e.target.value }))} placeholder="contoh: KopiJiwa-5G" required maxLength={32} /></div>
+                      <div className="field"><span>Band</span><SelectField name="band" value={wifiForm.band} onChange={(e) => setWifiForm((c) => ({ ...c, band: e.target.value }))} options={bandOptions.map((b) => ({ value: b, label: b }))} /></div>
+                    </div>
+                    <div className="submit-form__grid">
+                      <div className="field"><span>Password (kosongkan jika open)</span><input value={wifiForm.password} onChange={(e) => setWifiForm((c) => ({ ...c, password: e.target.value }))} placeholder="Hanya jika publik / disetujui" /></div>
+                      <div className="field"><span>Sumber password * jika ada password</span><SelectField name="passwordSource" value={wifiForm.passwordSource} onChange={(e) => setWifiForm((c) => ({ ...c, passwordSource: e.target.value }))} placeholder="Pilih sumber" allowEmpty options={passwordSourceOptions.map((o) => ({ value: o, label: localizeLabel(o) }))} /></div>
+                    </div>
+                    <button type="submit" className="button button--primary" disabled={sendingWifi}>{sendingWifi ? "Mengirim..." : "Kirim WiFi untuk moderasi"}</button>
+                  </form>
+                </>
+              )}
             </div>
           </article>
 
           <article className="panel">
-            <SectionHeader title="Kata Pengunjung" description="Rating kecepatan dan kenyamanan dipisah agar tempat cepat tapi ramai tetap terlihat jujur." />
+            <SectionHeader
+              title="Ulasan Pengunjung"
+              description="Rating kecepatan dan kenyamanan dipisah agar tempat cepat tapi ramai tetap terlihat jujur."
+            />
+
             <div className="review-list">
               {place.reviews?.length ? place.reviews.map((review) => <ReviewCard key={review.id} review={review} />) : <EmptyState title="Belum ada ulasan." description="Ulasan pertama membantu pengunjung berikutnya." />}
             </div>
-          </article>
 
-          <article className="panel">
-            <SectionHeader title="Tambahkan laporan kecepatan dan kenyamanan" description="Tulis komentar yang praktis dan spesifik. Rating bintang diminta saat kamu menerbitkan ulasan." />
-            {reviewMessage.text ? <InfoBanner tone={reviewMessage.tone}>{reviewMessage.text}</InfoBanner> : null}
-            <form className="review-form" onSubmit={handleReviewSubmit}>
-              <label className="field"><span>Komentar</span><textarea value={reviewForm.comment} onChange={(e) => setReviewForm((c) => ({ ...c, comment: e.target.value }))} placeholder="Ceritakan stabilitas koneksi, kebisingan, colokan, atau area duduk terbaik." required /></label>
-              <label className="field"><span>Foto ulasan</span><input type="file" accept="image/*" onChange={handleReviewImageChange} /></label>
-              {reviewForm.imageUrl ? <img className="review-form__preview" src={reviewForm.imageUrl} alt="Preview foto ulasan" /> : null}
-              <button type="submit" className="button button--primary" disabled={sendingReview}>{sendingReview ? "Mengirim..." : "Terbitkan ulasan"}</button>
-            </form>
+            {showReviewForm ? (
+              <div style={{ marginTop: 24, paddingTop: 24, borderTop: "1px solid var(--border-color)" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                  <h3 style={{ margin: 0, fontSize: "1.1rem" }}>Tambahkan laporan kecepatan dan kenyamanan</h3>
+                  <button
+                    type="button"
+                    className="button button--ghost button--small"
+                    onClick={() => setShowReviewForm(false)}
+                  >
+                    Batal
+                  </button>
+                </div>
+                {reviewMessage.text ? <InfoBanner tone={reviewMessage.tone}>{reviewMessage.text}</InfoBanner> : null}
+                <form className="review-form" onSubmit={handleReviewSubmit}>
+                  <label className="field"><span>Komentar</span><textarea value={reviewForm.comment} onChange={(e) => setReviewForm((c) => ({ ...c, comment: e.target.value }))} placeholder="Ceritakan stabilitas koneksi, kebisingan, colokan, atau area duduk terbaik." required /></label>
+                  <label className="field"><span>Foto ulasan</span><input type="file" accept="image/*" onChange={handleReviewImageChange} /></label>
+                  {reviewForm.imageUrl ? <img className="review-form__preview" src={reviewForm.imageUrl} alt="Preview foto ulasan" /> : null}
+                  <button type="submit" className="button button--primary" disabled={sendingReview}>{sendingReview ? "Mengirim..." : "Terbitkan ulasan"}</button>
+                </form>
+              </div>
+            ) : (
+              <div style={{ marginTop: 20, display: "flex", justifyContent: "center" }}>
+                <button
+                  type="button"
+                  className="button button--primary"
+                  onClick={() => setShowReviewForm(true)}
+                  style={{ width: "100%", maxWidth: "320px" }}
+                >
+                  Tulis Ulasan & Laporan
+                </button>
+              </div>
+            )}
           </article>
 
           <article className="panel">
