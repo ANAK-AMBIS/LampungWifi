@@ -12,8 +12,10 @@ dist
 dist-ssr
 .next
 out
+coverage
 .env
 .env.*
+!.env.example
 *.local
 
 # Editor directories and files

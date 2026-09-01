@@ -6,11 +6,30 @@ const imageHosts = (process.env.NEXT_IMAGE_REMOTE_HOSTS ?? defaultImageHosts.joi
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  compress: true,
   images: {
     remotePatterns: imageHosts.map((hostname) => ({
       protocol: 'https',
       hostname,
     })),
+    formats: ['image/avif', 'image/webp'],
+    minimumCacheTTL: 60,
+  },
+  experimental: {
+    optimizePackageImports: ['zod'],
+  },
+  async headers() {
+    return [
+      {
+        source: '/api/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, s-maxage=60, stale-while-revalidate=300',
+          },
+        ],
+      },
+    ];
   },
 }
 

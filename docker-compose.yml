@@ -4,16 +4,29 @@ services:
     container_name: balamwifi
     ports:
       - "3000:3000"
-      - "8787:8787"
+    expose:
+      - "8787"
     environment:
       - NODE_ENV=production
       - PORT=8787
+      # Single-container uses concurrently (Next + Express in same container) -> localhost works.
+      # If split into separate containers, change to http://app:8787
       - API_SERVER_URL=http://localhost:8787
       - ADMIN_TOKEN=${ADMIN_TOKEN:-}
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
+      - SESSION_SECRET=${SESSION_SECRET:-}
       - NEXT_PUBLIC_GOOGLE_CLIENT_ID=${NEXT_PUBLIC_GOOGLE_CLIENT_ID:-}
+      - NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL:-}
+      - SPEEDTEST_MAX_DISTANCE_M=${SPEEDTEST_MAX_DISTANCE_M:-150}
       - DATABASE_URL=${DATABASE_URL:-}
       - CORS_ORIGIN=${CORS_ORIGIN:-}
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8787/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
     restart: unless-stopped
 
   db:
@@ -24,10 +37,15 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD:-balamwifi}
       POSTGRES_DB: balamwifi
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./server/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U balamwifi -d balamwifi"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
     profiles:
       - full
     restart: unless-stopped

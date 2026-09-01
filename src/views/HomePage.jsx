@@ -5,7 +5,6 @@ import { useEffect, useState } from "react";
 import { getPlaces } from "../api";
 import { categoryOptions, categoryLabels } from "../lib/constants";
 import {
-  CategoryIcon,
   InfoBanner,
   LoadingGrid,
   PlaceCard,
@@ -30,7 +29,7 @@ export function HomePage({ initialFeatured }) {
       })();
       return () => { active = false; };
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- fallback fetch once when initialFeatured empty/error
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
@@ -45,7 +44,7 @@ export function HomePage({ initialFeatured }) {
           </h1>
           <p>
             Cari kafe, coworking, perpustakaan, dan area kampus dengan WiFi
-            publik di Bandar Lampung, lengkap dengan laporan kecepatan dan
+            publik di Bandar Lampung — lengkap dengan laporan kecepatan dan
             ulasan komunitas.
           </p>
         </div>
@@ -65,7 +64,7 @@ export function HomePage({ initialFeatured }) {
               className="category-card"
             >
               <span className="category-card__icon">
-                <CategoryIcon category={category} />
+                {categoryIcon(category)}
               </span>
               <span className="category-card__label">
                 {categoryLabels[category] || category}
@@ -122,4 +121,17 @@ export function HomePage({ initialFeatured }) {
       </section>
     </main>
   );
+}
+
+function categoryIcon(category) {
+  const size = 28;
+  const icons = {
+    "Cafe / Coffee Shop": <i className="hgi-stroke hgi-coffee-02" style={{ fontSize: size }} aria-hidden="true"></i>,
+    "Coworking Space": <i className="hgi-stroke hgi-computer" style={{ fontSize: size }} aria-hidden="true"></i>,
+    Library: <i className="hgi-stroke hgi-book-open-02" style={{ fontSize: size }} aria-hidden="true"></i>,
+    "Campus Lounge": <i className="hgi-stroke hgi-graduation-cap" style={{ fontSize: size }} aria-hidden="true"></i>,
+    Restaurant: <i className="hgi-stroke hgi-restaurant" style={{ fontSize: size }} aria-hidden="true"></i>,
+    "Rest Area": <i className="hgi-stroke hgi-pine-tree" style={{ fontSize: size }} aria-hidden="true"></i>,
+  };
+  return icons[category] || <i className="hgi-stroke hgi-computer" style={{ fontSize: size }} aria-hidden="true"></i>;
 }

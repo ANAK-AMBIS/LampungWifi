@@ -3,10 +3,11 @@ FROM node:22-alpine AS builder
 WORKDIR /app
 
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev --ignore-scripts
+RUN npm ci
 
 COPY . .
 RUN npm run build
+RUN npm prune --omit=dev
 
 # ---- Production Stage ----
 FROM node:22-alpine AS runner
@@ -26,5 +27,6 @@ COPY --from=builder /app/next.config.js ./
 
 USER app
 EXPOSE 3000 8787
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 CMD wget -qO- http://localhost:8787/api/health || exit 1
 
 CMD ["npm", "run", "start"]
