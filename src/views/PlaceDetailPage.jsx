@@ -19,6 +19,7 @@ import {
   StatusPill,
 } from "../components/ui";
 import { LoginGate } from "../components/LoginGate";
+import { UserBadge } from "../components/UserBadge";
 import dynamic from "next/dynamic";
 import { compressReviewImage } from "../lib/browserImage";
 
@@ -204,7 +205,12 @@ export function PlaceDetailPage({ placeId, initialState = emptyPlaceState }) {
                 <StatusPill tone="muted">{place.review_count} ulasan</StatusPill>
                 {place.wifi_ssid ? <StatusPill tone="info">{place.wifi_ssid}</StatusPill> : null}
               </div>
-              {place.submitter_name ? <p className="contributor-credit">Dikontribusikan oleh {place.submitter_name}</p> : null}
+              {place.submitter_name ? (
+                <p className="contributor-credit">
+                  Dikontribusikan oleh {place.submitter_name}
+                  <UserBadge role={place.submitter_role} isTrusted={place.submitter_is_trusted} />
+                </p>
+              ) : null}
               <p className="detail-hero__context">{place.map_context || "Catatan lokasi dari kontributor belum ada."}</p>
               <div className="detail-hero__location">
                 <div className="map-card__visual"><div className="map-pin" /></div>
@@ -268,12 +274,18 @@ export function PlaceDetailPage({ placeId, initialState = emptyPlaceState }) {
                       <div className="wifi-cred-card__body">
                         <MetricRow label="Password" value={needsLoginForPw ? "•••• (login)" : (cred.password || "Open network")} />
                         <MetricRow label="Sumber" value={localizeLabel(cred.password_source) || "-"} />
-                        <p className="wifi-cred-card__meta">Oleh {cred.submitted_by_name} — {formatDate(cred.created_at)}</p>
+                        <p className="wifi-cred-card__meta">
+                          Oleh {cred.submitted_by_name}
+                          <UserBadge role={cred.submitted_by_role} isTrusted={cred.submitted_by_is_trusted} />
+                          {" — "}{formatDate(cred.created_at)}
+                        </p>
                         {cred.ratings?.length ? (
                           <div className="wifi-cred-card__ratings">
                             {cred.ratings.slice(0,3).map((r) => (
                               <div key={r.id} className="wifi-rating-mini">
-                                <strong>{r.rater_name}</strong> <span>{r.rating}/5</span> — <span>{r.comment || ""}</span> <small>{formatDate(r.created_at)}</small>
+                                                                 <strong>{r.rater_name}</strong>
+                                 <UserBadge role={r.rater_role} isTrusted={r.rater_is_trusted} />
+                                 {" "}<span>{r.rating}/5</span> — <span>{r.comment || ""}</span> <small>{formatDate(r.created_at)}</small>
                               </div>
                             ))}
                             {cred.ratings.length > 3 ? <small>+{cred.ratings.length - 3} rating lain</small> : null}

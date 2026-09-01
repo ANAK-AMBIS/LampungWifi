@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { formatDate } from '../lib/format'
+import { UserBadge } from './UserBadge'
 
 export function SectionHeader({ eyebrow, title, description, action }) {
   return (
@@ -40,6 +41,7 @@ export function ReviewCard({ review }) {
       <div className="review-card__head">
         <div>
           <strong>{review.author_name}</strong>
+          <UserBadge role={review.author_role} isTrusted={review.author_is_trusted} />
           <span>{formatDate(review.created_at)}</span>
         </div>
         <div className="review-card__ratings">

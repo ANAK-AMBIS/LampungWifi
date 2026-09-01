@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { SubmitPlaceForm } from "../../src/components/SubmitPlaceForm";
+import { UserBadge } from "../../src/components/UserBadge";
 
 export default function DashboardPage() {
   const { user, signOut } = useAuth();
@@ -83,7 +84,9 @@ export default function DashboardPage() {
           <h1 style={{ fontSize: "clamp(1.4rem, 3vw, 2rem)", margin: 0 }}>
             Hai, {user.name?.split(" ")[0]}!
           </h1>
-          <p style={{ margin: "4px 0 0", color: "#5f584d" }}>{user.email}</p>
+          <p style={{ margin: "4px 0 0", color: "#5f584d" }}>
+            {user.email} <UserBadge role={user.role} isTrusted={user.isTrusted} />
+          </p>
         </div>
         <button
           type="button"
@@ -183,6 +186,7 @@ export default function DashboardPage() {
                     <article key={item.id} className="dashboard-item">
                       <div>
                         <strong>{item.name}</strong>
+                        <UserBadge role={item.submitter_role} isTrusted={item.submitter_is_trusted} />
                         <span>{item.category}</span>
                       </div>
                       <div className="dashboard-item__meta">

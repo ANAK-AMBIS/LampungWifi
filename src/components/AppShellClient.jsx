@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useAuth } from "../lib/useAuth";
+import { UserBadge } from "./UserBadge";
 
 const whatsNewStorageKey = "balamwifi_seen_whats_new";
 const whatsNewChangedEvent = "balamwifi_whats_new_changed";
@@ -27,6 +28,7 @@ export function TopbarLogin() {
         <Link href="/dashboard" className="login-button" title={user.email}>
           {user.picture ? <img src={user.picture} alt="" /> : null}
           <span>{user.name}</span>
+          <UserBadge role={user.role} isTrusted={user.isTrusted} />
         </Link>
       ) : (
         <button
