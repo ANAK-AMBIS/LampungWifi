@@ -56,6 +56,11 @@ function validateEnv() {
 
 validateEnv();
 
+// Force in-memory store for tests to avoid external DB dependencies
+if (process.env.NODE_ENV === "test") {
+  process.env.DATABASE_URL = "";
+}
+
 const app = express();
 app.set("trust proxy", 1);
 const store = await createStore();
@@ -81,6 +86,8 @@ function createSession(user) {
       name: user.name,
       email: user.email,
       picture: user.picture ?? "",
+      role: user.role ?? "member",
+      isTrusted: user.role === "admin" ? false : Boolean(user.isTrusted),
       iat: Math.floor(Date.now() / 1000),
     }),
   ).toString("base64url");
@@ -201,6 +208,21 @@ const reviewSchema = z.object({
 const moderationSchema = z.object({
   status: z.enum(["approved", "rejected"]),
 });
+
+const userUpdateSchema = z
+  .object({
+    role: z.enum(["admin", "member"]).optional(),
+    isTrusted: z.boolean().optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.role === "admin" && value.isTrusted === true) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Admin tidak perlu di-flag trusted",
+        path: ["isTrusted"],
+      });
+    }
+  });
 
 const wifiCredentialSchema = z
   .object({
@@ -365,6 +387,8 @@ async function requireGoogleUser(request, response, next) {
     name: user.name,
     email: user.email,
     picture: user.picture,
+    role: user.role ?? "member",
+    isTrusted: user.role === "admin" ? false : Boolean(user.isTrusted),
   };
   next();
 }
@@ -539,10 +563,17 @@ app.get("/api/auth/google/callback", async (request, response, next) => {
       response.status(401).json({ error: "Email tidak terverifikasi" });
       return;
     }
+    const dbUser = await store.upsertUser({
+      name: payload.name ?? payload.email,
+      email: payload.email,
+      picture: payload.picture ?? "",
+    });
     const session = createSession({
       name: payload.name ?? payload.email,
       email: payload.email,
       picture: payload.picture ?? "",
+      role: dbUser.role,
+      isTrusted: dbUser.is_trusted,
     });
     response.cookie("session", session, {
       httpOnly: true,
@@ -565,7 +596,13 @@ app.get("/api/auth/me", (request, response) => {
     return;
   }
   response.json({
-    user: { name: user.name, email: user.email, picture: user.picture },
+    user: {
+      name: user.name,
+      email: user.email,
+      picture: user.picture,
+      role: user.role ?? "member",
+      isTrusted: user.role === "admin" ? false : Boolean(user.isTrusted),
+    },
   });
 });
 
@@ -951,6 +988,46 @@ app.patch(
         message: `Submission ${parsed.status}`,
       });
     } catch (error) {
+      next(error);
+    }
+  },
+  );
+
+app.get(
+  "/api/admin/users",
+  requireAdmin,
+  async (_request, response, next) => {
+    try {
+      const data = await store.listUsers();
+      response.json({ data, meta: { source: store.mode } });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+app.patch(
+  "/api/admin/users/:id",
+  csrfCheck,
+  requireAdmin,
+  mutationLimiter,
+  async (request, response, next) => {
+    try {
+      const parsed = userUpdateSchema.parse(request.body);
+      const updated = await store.updateUser(Number(request.params.id), {
+        role: parsed.role,
+        isTrusted: parsed.isTrusted,
+      });
+      if (!updated) {
+        response.status(404).json({ error: "User not found" });
+        return;
+      }
+      response.json({ data: updated, message: "User updated" });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        response.status(400).json({ error: "Validation failed", details: error.issues });
+        return;
+      }
       next(error);
     }
   },

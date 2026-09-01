@@ -126,6 +126,10 @@ function revalidateApiTags(path, body) {
     tags.add("places");
     if (id) tags.add(`place:${id}`);
   }
+  if (resource === "admin" && scope === "users") {
+    // user badge changes may affect place/review contributor display
+    tags.add("places");
+  }
 
   for (const tag of tags) {
     revalidateTag(tag, "max");
