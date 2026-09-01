@@ -4,6 +4,7 @@ import crypto from "node:crypto";
 import dotenv from "dotenv";
 import express from "express";
 import rateLimit from "express-rate-limit";
+import helmet from "helmet";
 import { OAuth2Client } from "google-auth-library";
 import { z } from "zod";
 import { createStore } from "./db.js";
@@ -56,6 +57,7 @@ function validateEnv() {
 validateEnv();
 
 const app = express();
+app.set("trust proxy", 1);
 const store = await createStore();
 const port = Number(process.env.PORT ?? 8787);
 const adminToken = process.env.ADMIN_TOKEN?.trim();
@@ -65,7 +67,9 @@ const googleClientId =
 const defaultCorsOrigin = isProduction ? false : true;
 
 // ── Session helpers ───────────────────────────────
-const sessionSecret = `${googleClientId ?? "balamwifi"}.${process.env.ADMIN_TOKEN ?? "session"}`;
+const sessionSecret =
+  process.env.SESSION_SECRET?.trim() ||
+  `${googleClientId ?? "balamwifi"}.${process.env.ADMIN_TOKEN ?? "session"}`;
 
 function createSession(user) {
   const header = Buffer.from(
@@ -366,10 +370,29 @@ async function requireGoogleUser(request, response, next) {
 }
 
 app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        imgSrc: ["'self'", "data:", "https:", "blob:", "i.ibb.co", "images.unsplash.com", "lh3.googleusercontent.com"],
+        scriptSrc: ["'self'", "'unsafe-inline'"],
+        connectSrc: ["'self'", "https://*.cloudflare.com", "https://api.fontshare.com", "https://cdn.hugeicons.com"],
+        styleSrc: ["'self'", "'unsafe-inline'", "https://api.fontshare.com", "https://cdn.hugeicons.com"],
+        fontSrc: ["'self'", "https:", "data:"],
+      },
+      reportOnly: true,
+    },
+    crossOriginEmbedderPolicy: false,
+  }),
+);
+app.use(
   cors({
     origin: process.env.CORS_ORIGIN
       ? process.env.CORS_ORIGIN.split(",")
+          .map((s) => s.trim())
+          .filter(Boolean)
       : defaultCorsOrigin,
+    credentials: true,
   }),
 );
 app.use(express.json({ limit: "2mb" }));
@@ -402,9 +425,23 @@ function csrfCheck(request, response, next) {
 
   const origin = request.get("origin") ?? "";
   const xRequestedWith = request.get("x-requested-with") ?? "";
+  const allowedOrigins = process.env.CORS_ORIGIN
+    ? process.env.CORS_ORIGIN.split(",")
+        .map((s) => s.trim())
+        .filter(Boolean)
+    : [];
 
   if (!origin && !xRequestedWith && request.is("application/json")) {
     next();
+    return;
+  }
+
+  if (origin && allowedOrigins.length > 0) {
+    if (allowedOrigins.includes(origin)) {
+      next();
+      return;
+    }
+    response.status(403).json({ error: "CSRF check failed — origin not allowed" });
     return;
   }
 
@@ -432,8 +469,8 @@ const mutationLimiter = rateLimit({
   message: { error: "Too many submissions, please try again later" },
 });
 
-app.use(generalLimiter);
 app.use(cookieParser());
+app.use(generalLimiter);
 
 app.get("/api/health", async (_request, response) => {
   response.json({

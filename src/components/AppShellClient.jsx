@@ -2,9 +2,8 @@
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState, useRef, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { useAuth } from "../lib/useAuth";
-
 
 const whatsNewStorageKey = "balamwifi_seen_whats_new";
 const whatsNewChangedEvent = "balamwifi_whats_new_changed";
@@ -47,34 +46,15 @@ export function TopbarSearch() {
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const [query, setQuery] = useState("");
-  const [isOpen, setIsOpen] = useState(false);
-  const containerRef = useRef(null);
-
-  const [prevPath, setPrevPath] = useState(pathname);
-  const [prevParams, setPrevParams] = useState(searchParams.toString());
-
-  if (pathname !== prevPath || searchParams.toString() !== prevParams) {
-    setPrevPath(pathname);
-    setPrevParams(searchParams.toString());
-    setQuery(pathname === "/places" ? (searchParams.get("q") || "") : "");
-    setIsOpen(false);
-  }
 
   useEffect(() => {
-    function handleClickOutside(event) {
-      if (containerRef.current && !containerRef.current.contains(event.target)) {
-        setIsOpen(false);
-      }
+    if (pathname === "/places") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setQuery(searchParams.get("q") || "");
+    } else {
+      setQuery("");
     }
-    if (isOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-      document.addEventListener("touchstart", handleClickOutside);
-    }
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      document.removeEventListener("touchstart", handleClickOutside);
-    };
-  }, [isOpen]);
+  }, [pathname, searchParams]);
 
   function handleSearchSubmit(event) {
     event.preventDefault();
@@ -85,37 +65,17 @@ export function TopbarSearch() {
       params.delete("q");
     }
     router.push(`/places?${params.toString()}`);
-    setIsOpen(false);
   }
 
   return (
-    <div className="topbar-search" ref={containerRef}>
-      <button
-        type="button"
-        className={`topbar-search__toggle ${isOpen ? "topbar-search__toggle--active" : ""}`}
-        onClick={() => setIsOpen(!isOpen)}
-        aria-label="Cari tempat"
-        aria-expanded={isOpen}
-      >
-        <span className="topbar-search__toggle-icon topbar-search__toggle-icon--search">
-          <i className="hgi-stroke hgi-search-01" style={{ fontSize: 18 }} aria-hidden="true"></i>
-        </span>
-        <span className="topbar-search__toggle-icon topbar-search__toggle-icon--cancel">
-          <i className="hgi-stroke hgi-cancel-01" style={{ fontSize: 18 }} aria-hidden="true"></i>
-        </span>
-      </button>
-      <form
-        className={`topbar-search__form ${isOpen ? "topbar-search__form--open" : ""}`}
-        onSubmit={handleSearchSubmit}
-      >
-        <input
-          type="text"
-          placeholder="Cari tempat..."
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-        />
-      </form>
-    </div>
+    <form className="topbar-search" onSubmit={handleSearchSubmit}>
+      <input
+        type="text"
+        placeholder="Cari tempat..."
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+      />
+    </form>
   );
 }
 

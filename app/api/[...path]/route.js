@@ -104,6 +104,8 @@ function revalidateApiTags(path, body) {
     tags.add("places");
     const credId = id ? Number(id) : null;
     if (credId) tags.add(`place:wifi:${credId}`);
+    const placeId = readJsonNumber(body, "placeId");
+    if (placeId) tags.add(`place:${placeId}`);
   }
 
   if (resource === "places" && scope && id === "speedtest") {
