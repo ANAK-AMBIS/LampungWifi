@@ -95,6 +95,17 @@ export function updateWifiStatus(credentialId, status, token = "") {
   });
 }
 
+export function getAdminUsers() {
+  return request("/admin/users");
+}
+
+export function updateUser(userId, patch) {
+  return request(`/admin/users/${userId}`, {
+    method: "PATCH",
+    body: JSON.stringify(patch),
+  });
+}
+
 export function getSpeedHistory(placeId, params = {}) {
   return request(`/places/${placeId}/speedtest${buildQuery(params)}`);
 }

@@ -21,6 +21,41 @@ function round(value) {
   return Math.round(value * 10) / 10;
 }
 
+// ---- user-badge enrichment (shared helpers) ----
+// Admin is_trusted is always treated as false (badge Admin shown instead).
+function badgeForUserStore(usersByEmail, email) {
+  if (!usersByEmail) return { role: "member", isTrusted: false };
+  const u = usersByEmail.get(String(email ?? "").toLowerCase());
+  if (!u) return { role: "member", isTrusted: false };
+  return { role: u.role, isTrusted: u.role === "admin" ? false : Boolean(u.is_trusted) };
+}
+
+function withSubmitterBadge(place, usersByEmail) {
+  const b = badgeForUserStore(usersByEmail, place.submitter_email);
+  return { ...place, submitter_role: b.role, submitter_is_trusted: b.isTrusted };
+}
+function withAuthorBadge(review, usersByEmail) {
+  const b = badgeForUserStore(usersByEmail, review.author_email);
+  const base = { ...review, author_role: b.role, author_is_trusted: b.isTrusted };
+  return base;
+}
+function withWifiSubmitterBadge(cred, usersByEmail) {
+  const b = badgeForUserStore(usersByEmail, cred.submitted_by_email);
+  return { ...cred, submitted_by_role: b.role, submitted_by_is_trusted: b.isTrusted };
+}
+function withRaterBadge(rating, usersByEmail) {
+  const b = badgeForUserStore(usersByEmail, rating.rater_email);
+  return { ...rating, rater_role: b.role, rater_is_trusted: b.isTrusted };
+}
+function withTesterBadge(test, usersByEmail) {
+  const b = badgeForUserStore(usersByEmail, test.tested_by_email);
+  return { ...test, tested_by_role: b.role, tested_by_is_trusted: b.isTrusted };
+}
+function mapRatingRow(row) {
+  const role = row.rater_role ?? "member";
+  return { ...row, rater_role: role, rater_is_trusted: role === "admin" ? false : Boolean(row.rater_is_trusted) };
+}
+
 function buildMetricsMap(reviewList) {
   const grouped = new Map();
 
@@ -244,8 +279,11 @@ function normalizeSpeedPayload(payload) {
 }
 
 function mapSpeedRow(row) {
+  const role = row.tested_by_role ?? "member";
   return {
     ...row,
+    tested_by_role: role,
+    tested_by_is_trusted: role === "admin" ? false : Boolean(row.tested_by_is_trusted),
     download_mbps: row.download_mbps == null ? null : Number(row.download_mbps),
     upload_mbps: row.upload_mbps == null ? null : Number(row.upload_mbps),
     ping_ms: row.ping_ms == null ? null : Number(row.ping_ms),
@@ -276,6 +314,9 @@ function createMemoryStore() {
   const places = structuredClone(seedPlaces);
   const reviews = structuredClone(seedReviews);
   const users = structuredClone(seedUsers);
+  const usersByEmail = new Map(
+    users.map((u) => [String(u.email ?? "").toLowerCase(), u]),
+  );
   // seed wifi credentials
   const wifiCredentials = [];
   const wifiRatings = [];
@@ -340,12 +381,67 @@ function createMemoryStore() {
   return {
     mode: "memory",
     async initialize() {},
+    async getUserByEmail(email) {
+      return usersByEmail.get(String(email ?? "").toLowerCase()) ?? null;
+    },
+    async upsertUser(payload) {
+      const email = String(payload.email ?? "").toLowerCase();
+      const existing = usersByEmail.get(email);
+      if (!existing) {
+        const record = {
+          id: users.length + 1,
+          name: payload.name,
+          email: payload.email,
+          role: "member",
+          is_trusted: false,
+          picture: payload.picture ?? null,
+          created_at: new Date().toISOString(),
+        };
+        users.push(record);
+        usersByEmail.set(email, record);
+        return record;
+      }
+      existing.name = payload.name ?? existing.name;
+      if (payload.picture) existing.picture = payload.picture;
+      return existing;
+    },
+    async listUsers() {
+      return users.map((u) => ({
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        role: u.role,
+        is_trusted: Boolean(u.is_trusted),
+        picture: u.picture ?? null,
+        created_at: u.created_at,
+      }));
+    },
+    async updateUser(id, patch) {
+      const user = users.find((u) => Number(u.id) === Number(id));
+      if (!user) return null;
+      if (patch.role !== undefined) user.role = patch.role;
+      if (user.role === "admin") {
+        user.is_trusted = false;
+      } else if (patch.isTrusted !== undefined) {
+        user.is_trusted = patch.isTrusted;
+      }
+      usersByEmail.set(String(user.email).toLowerCase(), user);
+      return {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        is_trusted: Boolean(user.is_trusted),
+        picture: user.picture ?? null,
+        created_at: user.created_at,
+      };
+    },
     async listPlaces(filters = {}) {
       const metricsMap = buildMetricsMap(reviews);
-      const filtered = applyFilters(
-        places.map((place) => withMetricsMap(place, metricsMap)),
-        filters,
-      ).sort(sortFeatured);
+      const withBadge = places.map((place) =>
+        withSubmitterBadge(withMetricsMap(place, metricsMap), usersByEmail),
+      );
+      const filtered = applyFilters(withBadge, filters).sort(sortFeatured);
 
       const total = filtered.length;
       const limit = Number(filters.limit ?? 100);
@@ -371,19 +467,25 @@ function createMemoryStore() {
         );
 
       const isAuth = Boolean(opts.isAuthenticated);
-      const maskedPlace = applyHypeMask(withMetricsMap(place, metricsMap), isAuth);
+      const maskedPlace = applyHypeMask(withSubmitterBadge(withMetricsMap(place, metricsMap), usersByEmail), isAuth);
       const allCreds = wifiCredentials
         .filter((c) => Number(c.place_id) === Number(placeId) && c.status === "approved")
         .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-      const visibleCreds = maskWifiCredentials(allCreds, Boolean(place.is_hype), isAuth);
+      const allCredsWithBadge = allCreds.map((c) => withWifiSubmitterBadge(c, usersByEmail));
+      const visibleCreds = maskWifiCredentials(allCredsWithBadge, Boolean(place.is_hype), isAuth);
       // attach ratings per cred
       const credsWithRatings = visibleCreds.map((c) => ({
         ...c,
-        ratings: wifiRatings.filter((r) => Number(r.credential_id) === Number(c.id)).sort((a, b) => new Date(b.created_at) - new Date(a.created_at)),
+        ratings: wifiRatings
+          .filter((r) => Number(r.credential_id) === Number(c.id))
+          .map((r) => withRaterBadge(r, usersByEmail))
+          .sort((a, b) => new Date(b.created_at) - new Date(a.created_at)),
       }));
 
       // speed tests 30d stats
-      const placeSpeedTests = speedTests.filter((s) => Number(s.place_id) === Number(placeId));
+      const placeSpeedTests = speedTests
+        .filter((s) => Number(s.place_id) === Number(placeId))
+        .map((s) => withTesterBadge(s, usersByEmail));
       const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
       const recent30 = placeSpeedTests.filter((s) => new Date(s.created_at).getTime() > thirtyDaysAgo);
       const speedStats = { ...computeSpeedStats(recent30), total: placeSpeedTests.length, last_test_at: placeSpeedTests[0]?.created_at ?? null };
@@ -391,14 +493,14 @@ function createMemoryStore() {
 
       return {
         ...maskedPlace,
-        reviews: placeReviews,
+        reviews: placeReviews.map((r) => withAuthorBadge(r, usersByEmail)),
         wifi_credentials: credsWithRatings,
         wifi_credentials_total: allCreds.length,
         speed_tests: recentSpeedTests,
         speed_stats: speedStats,
         related_places: places
           .filter((item) => item.status === "approved" && item.id !== place.id)
-          .map((item) => withMetricsMap(item, metricsMap))
+          .map((item) => withSubmitterBadge(withMetricsMap(item, metricsMap), usersByEmail))
           .sort(sortFeatured)
           .slice(0, 3),
       };
@@ -444,7 +546,7 @@ function createMemoryStore() {
       const metricsMap = buildMetricsMap(reviews);
       const submissions = places
         .filter((item) => item.status !== "approved")
-        .map((item) => withMetricsMap(item, metricsMap))
+        .map((item) => withSubmitterBadge(withMetricsMap(item, metricsMap), usersByEmail))
         .sort(
           (left, right) =>
             new Date(right.created_at) - new Date(left.created_at),
@@ -480,16 +582,18 @@ function createMemoryStore() {
       place.status = status;
       place.updated_at = new Date().toISOString();
 
-      return withMetricsMap(place, buildMetricsMap(reviews));
+      return withSubmitterBadge(withMetricsMap(place, buildMetricsMap(reviews)), usersByEmail);
     },
     async listUserSubmissions(email) {
       return places
         .filter((p) => p.submitter_email === email)
+        .map((p) => withSubmitterBadge(p, usersByEmail))
         .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
     },
     async listUserReviews(email) {
       return reviews
         .filter((r) => r.author_email === email)
+        .map((r) => withAuthorBadge(r, usersByEmail))
         .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
     },
     async listWifiCredentials(placeId, opts = {}) {
@@ -503,8 +607,10 @@ function createMemoryStore() {
         .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
       const total = filtered.length;
       const slice = filtered.slice(offset, offset + limit).map((c) => ({
-        ...c,
-        ratings: wifiRatings.filter((r) => Number(r.credential_id) === Number(c.id)),
+        ...withWifiSubmitterBadge(c, usersByEmail),
+        ratings: wifiRatings
+          .filter((r) => Number(r.credential_id) === Number(c.id))
+          .map((r) => withRaterBadge(r, usersByEmail)),
       }));
       const masked = maskWifiCredentials(slice, Boolean(place?.is_hype), isAuth);
       return { data: masked, total };
@@ -531,7 +637,7 @@ function createMemoryStore() {
         updated_at: new Date().toISOString(),
       };
       wifiCredentials.unshift(record);
-      return record;
+      return withWifiSubmitterBadge(record, usersByEmail);
     },
     async rateWifiCredential(credentialId, payload) {
       const cred = wifiCredentials.find((c) => Number(c.id) === Number(credentialId));
@@ -554,11 +660,12 @@ function createMemoryStore() {
       cred.avg_rating = Math.round(avg * 10) / 10;
       cred.rating_count = related.length;
       cred.updated_at = new Date().toISOString();
-      return record;
+      return withRaterBadge(record, usersByEmail);
     },
     async listAdminWifiCredentials() {
       const pending = wifiCredentials
         .filter((c) => c.status === "pending")
+        .map((c) => withWifiSubmitterBadge(c, usersByEmail))
         .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
       return pending;
     },
@@ -614,12 +721,15 @@ function createMemoryStore() {
         created_at: new Date().toISOString(),
       };
       speedTests.unshift(record);
-      return record;
+      return withTesterBadge(record, usersByEmail);
     },
     async listSpeedTests(placeId, opts = {}) {
       const limit = Number(opts.limit ?? 20);
       const offset = Number(opts.offset ?? 0);
-      const filtered = speedTests.filter((s) => Number(s.place_id) === Number(placeId)).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      const filtered = speedTests
+        .filter((s) => Number(s.place_id) === Number(placeId))
+        .map((s) => withTesterBadge(s, usersByEmail))
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
       const total = filtered.length;
       const slice = filtered.slice(offset, offset + limit);
       // 30-day stats
@@ -699,8 +809,11 @@ function buildWhereClause(filters, params, alias = "p") {
 }
 
 function mapRow(row) {
+  const role = row.submitter_role ?? "member";
   return {
     ...row,
+    submitter_role: role,
+    submitter_is_trusted: role === "admin" ? false : Boolean(row.submitter_is_trusted),
     wifi_available: row.wifi_available,
     has_power_outlets: row.has_power_outlets,
     open_24_hours: row.open_24_hours,
@@ -720,8 +833,12 @@ function mapRow(row) {
 }
 
 function mapWifiRow(row) {
+  const role = row.submitted_by_role ?? "member";
   return {
     ...row,
+    submitted_by_role: role,
+    submitted_by_is_trusted:
+      role === "admin" ? false : Boolean(row.submitted_by_is_trusted),
     avg_rating: row.avg_rating === null ? 0 : Number(row.avg_rating),
     rating_count: row.rating_count === null ? 0 : Number(row.rating_count),
   };
@@ -744,7 +861,9 @@ const placeListColumns = `
   p.submitter_name,
   p.status,
   p.created_at,
-  p.updated_at
+  p.updated_at,
+  u_sub.role AS submitter_role,
+  u_sub.is_trusted AS submitter_is_trusted
 `;
 
 function createPostgresStore() {
@@ -806,8 +925,9 @@ function createPostgresStore() {
           COALESCE(m.avg_rating, 0)::numeric(10, 2) AS avg_rating,
           COALESCE(m.review_count, 0)::int AS review_count
         FROM places p
-        LEFT JOIN place_metrics m ON m.place_id = p.id
-        ${whereSql}
+           LEFT JOIN place_metrics m ON m.place_id = p.id
+           LEFT JOIN users u_sub ON u_sub.email = p.submitter_email
+         ${whereSql}
         ORDER BY COALESCE(m.avg_rating, 0) DESC, p.wifi_speed_mbps DESC NULLS LAST, COALESCE(m.review_count, 0) DESC, p.created_at DESC
         LIMIT $${boundedParams.length - 1} OFFSET $${boundedParams.length}
       `,
@@ -825,9 +945,61 @@ function createPostgresStore() {
       }
       try {
         await pool.query(schemaSql);
+        await pool
+          .query(
+            `INSERT INTO users (name, email, role)
+             SELECT DISTINCT
+               COALESCE(p.submitter_name, p.submitter_email),
+               p.submitter_email,
+               'member'
+             FROM places p
+             WHERE p.submitter_email IS NOT NULL
+               AND NOT EXISTS (SELECT 1 FROM users WHERE users.email = p.submitter_email)`,
+          )
+          .catch(() => {});
       } catch (e) {
         console.error("[db] schema sync failed:", e.message, "- continuing");
       }
+    },
+    async getUserByEmail(email) {
+      const result = await pool.query(`SELECT * FROM users WHERE email = $1`, [email]);
+      return result.rows[0] ?? null;
+    },
+    async upsertUser(payload) {
+      const result = await pool.query(
+        `INSERT INTO users (name, email, picture, role, is_trusted)
+         VALUES ($1, $2, $3, 'member', FALSE)
+         ON CONFLICT (email) DO UPDATE
+           SET name = EXCLUDED.name,
+               picture = COALESCE(EXCLUDED.picture, users.picture)
+         RETURNING *`,
+        [payload.name, payload.email, payload.picture ?? null],
+      );
+      return result.rows[0];
+    },
+    async listUsers() {
+      const result = await pool.query(
+        `SELECT id, name, email, role, is_trusted, picture, created_at FROM users ORDER BY created_at DESC`,
+      );
+      return result.rows;
+    },
+    async updateUser(id, patch) {
+      const existing = await pool.query(`SELECT * FROM users WHERE id = $1`, [id]);
+      if (!existing.rows.length) return null;
+      const prev = existing.rows[0];
+      let isTrusted = typeof prev.is_trusted === "boolean" ? prev.is_trusted : false;
+      let role = prev.role ?? "member";
+      if (patch.role !== undefined) role = patch.role;
+      if (role === "admin") {
+        isTrusted = false;
+      } else if (patch.isTrusted !== undefined) {
+        isTrusted = patch.isTrusted;
+      }
+      const result = await pool.query(
+        `UPDATE users SET role = $2, is_trusted = $3 WHERE id = $1 RETURNING id, name, email, role, is_trusted, picture, created_at`,
+        [id, role, isTrusted],
+      );
+      return result.rows[0];
     },
     async listPlaces(filters = {}) {
       const params = [];
@@ -859,6 +1031,7 @@ function createPostgresStore() {
             COALESCE(m.review_count, 0)::int AS review_count
           FROM places p
           LEFT JOIN place_metrics m ON m.place_id = p.id
+          LEFT JOIN users u_sub ON u_sub.email = p.submitter_email
           WHERE p.id = $1
         `,
         [placeId],
@@ -874,10 +1047,15 @@ function createPostgresStore() {
 
       const reviewsResult = await pool.query(
         `
-            SELECT id, place_id, author_name, author_email, review_title, rating_speed, rating_comfort, image_url, comment, created_at
-            FROM reviews
-            WHERE place_id = $1
-            ORDER BY created_at DESC
+            SELECT
+              r.id, r.place_id, r.author_name, r.author_email, r.review_title,
+              r.rating_speed, r.rating_comfort, r.image_url, r.comment, r.created_at,
+              u_author.role AS author_role,
+              u_author.is_trusted AS author_is_trusted
+            FROM reviews r
+            LEFT JOIN users u_author ON u_author.email = r.author_email
+            WHERE r.place_id = $1
+            ORDER BY r.created_at DESC
           `,
         [placeId],
       ).catch(() => ({ rows: [] }));
@@ -894,6 +1072,7 @@ function createPostgresStore() {
               COALESCE(m.review_count, 0)::int AS review_count
             FROM places p
             LEFT JOIN place_metrics m ON m.place_id = p.id
+            LEFT JOIN users u_sub ON u_sub.email = p.submitter_email
             WHERE p.status = 'approved' AND p.id <> $1
             ORDER BY COALESCE(m.avg_rating, 0) DESC, p.wifi_speed_mbps DESC NULLS LAST
             LIMIT 3
@@ -918,7 +1097,14 @@ function createPostgresStore() {
       let wifiResult;
       try {
         wifiResult = await pool.query(
-          `SELECT * FROM wifi_credentials WHERE place_id = $1 AND status = 'approved' ORDER BY created_at DESC`,
+          `SELECT
+             wc.*,
+             u_sub.role AS submitted_by_role,
+             u_sub.is_trusted AS submitted_by_is_trusted
+           FROM wifi_credentials wc
+           LEFT JOIN users u_sub ON u_sub.email = wc.submitted_by_email
+           WHERE wc.place_id = $1 AND wc.status = 'approved'
+           ORDER BY wc.created_at DESC`,
           [placeId],
         );
         wifiCredsRaw = wifiResult.rows.map(mapWifiRow);
@@ -931,11 +1117,17 @@ function createPostgresStore() {
       const credsWithRatings = await Promise.all(
         wifiCredsMasked.map(async (c) => {
           try {
-            const r = await pool.query(
-              `SELECT * FROM wifi_credential_ratings WHERE credential_id = $1 ORDER BY created_at DESC LIMIT 20`,
-              [c.id],
-            );
-            return { ...c, ratings: r.rows };
+             const r = await pool.query(
+               `SELECT
+                  wr.*,
+                  u_rater.role AS rater_role,
+                  u_rater.is_trusted AS rater_is_trusted
+                FROM wifi_credential_ratings wr
+                LEFT JOIN users u_rater ON u_rater.email = wr.rater_email
+                WHERE wr.credential_id = $1 ORDER BY wr.created_at DESC LIMIT 20`,
+               [c.id],
+             );
+             return { ...c, ratings: r.rows.map(mapRatingRow) };
           } catch {
             return { ...c, ratings: [] };
           }
@@ -946,7 +1138,17 @@ function createPostgresStore() {
       let speedTestsRaw = [];
       let speedStats = { count: 0, avg_download: null, avg_upload: null, avg_ping: null, avg_jitter: null, total: 0, last_test_at: null };
       try {
-        const stRes = await pool.query(`SELECT * FROM speed_tests WHERE place_id = $1 ORDER BY created_at DESC LIMIT 5`, [placeId]);
+         const stRes = await pool.query(
+           `SELECT
+              st.*,
+              u_tester.role AS tested_by_role,
+              u_tester.is_trusted AS tested_by_is_trusted
+            FROM speed_tests st
+            LEFT JOIN users u_tester ON u_tester.email = st.tested_by_email
+            WHERE st.place_id = $1
+            ORDER BY st.created_at DESC LIMIT 5`,
+           [placeId],
+         );
         speedTestsRaw = stRes.rows.map(mapSpeedRow);
         const statsRes = await pool.query(
           `SELECT COUNT(*)::int as count, ROUND(AVG(download_mbps)::numeric,1) as avg_download, ROUND(AVG(upload_mbps)::numeric,1) as avg_upload, ROUND(AVG(ping_ms)::numeric,1) as avg_ping, ROUND(AVG(jitter_ms)::numeric,1) as avg_jitter FROM speed_tests WHERE place_id = $1 AND created_at > NOW() - INTERVAL '30 days'`,
@@ -1100,6 +1302,7 @@ function createPostgresStore() {
             COALESCE(m.review_count, 0)::int AS review_count
           FROM places p
           LEFT JOIN place_metrics m ON m.place_id = p.id
+          LEFT JOIN users u_sub ON u_sub.email = p.submitter_email
           WHERE p.status <> 'approved'
           ORDER BY p.created_at DESC
         `,
@@ -1136,14 +1339,28 @@ function createPostgresStore() {
     },
     async listUserSubmissions(email) {
       const result = await pool.query(
-        `SELECT * FROM places WHERE submitter_email = $1 ORDER BY created_at DESC`,
+        `SELECT
+           p.*,
+           u_sub.role AS submitter_role,
+           u_sub.is_trusted AS submitter_is_trusted
+         FROM places p
+         LEFT JOIN users u_sub ON u_sub.email = p.submitter_email
+         WHERE p.submitter_email = $1
+         ORDER BY p.created_at DESC`,
         [email],
       );
       return result.rows;
     },
     async listUserReviews(email) {
       const result = await pool.query(
-        `SELECT * FROM reviews WHERE author_email = $1 ORDER BY created_at DESC`,
+        `SELECT
+           r.*,
+           u_author.role AS author_role,
+           u_author.is_trusted AS author_is_trusted
+         FROM reviews r
+         LEFT JOIN users u_author ON u_author.email = r.author_email
+         WHERE r.author_email = $1
+         ORDER BY r.created_at DESC`,
         [email],
       );
       return result.rows;
@@ -1157,7 +1374,14 @@ function createPostgresStore() {
         const offset = Number(opts.offset ?? 0);
         const statusFilter = opts.includePending ? "" : "AND status = 'approved'";
         const result = await pool.query(
-          `SELECT * FROM wifi_credentials WHERE place_id = $1 ${statusFilter} ORDER BY created_at DESC LIMIT $2 OFFSET $3`,
+          `SELECT
+             wc.*,
+             u_sub.role AS submitted_by_role,
+             u_sub.is_trusted AS submitted_by_is_trusted
+           FROM wifi_credentials wc
+           LEFT JOIN users u_sub ON u_sub.email = wc.submitted_by_email
+           WHERE wc.place_id = $1 ${statusFilter}
+           ORDER BY wc.created_at DESC LIMIT $2 OFFSET $3`,
           [placeId, limit, offset],
         );
         const countRes = await pool.query(
@@ -1215,7 +1439,16 @@ function createPostgresStore() {
     },
     async listAdminWifiCredentials() {
       try {
-        const result = await pool.query(`SELECT * FROM wifi_credentials WHERE status = 'pending' ORDER BY created_at DESC`);
+        const result = await pool.query(
+          `SELECT
+             wc.*,
+             u_sub.role AS submitted_by_role,
+             u_sub.is_trusted AS submitted_by_is_trusted
+           FROM wifi_credentials wc
+           LEFT JOIN users u_sub ON u_sub.email = wc.submitted_by_email
+           WHERE wc.status = 'pending'
+           ORDER BY wc.created_at DESC`,
+        );
         return result.rows.map(mapWifiRow);
       } catch (e) {
         console.error("[db] listAdminWifi fallback:", e.message);
@@ -1269,7 +1502,17 @@ function createPostgresStore() {
       try {
         const limit = Number(opts.limit ?? 20);
         const offset = Number(opts.offset ?? 0);
-        const result = await pool.query(`SELECT * FROM speed_tests WHERE place_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`, [placeId, limit, offset]);
+        const result = await pool.query(
+          `SELECT
+             st.*,
+             u_tester.role AS tested_by_role,
+             u_tester.is_trusted AS tested_by_is_trusted
+           FROM speed_tests st
+           LEFT JOIN users u_tester ON u_tester.email = st.tested_by_email
+           WHERE st.place_id = $1
+           ORDER BY st.created_at DESC LIMIT $2 OFFSET $3`,
+          [placeId, limit, offset],
+        );
         const countRes = await pool.query(`SELECT COUNT(*)::int as total FROM speed_tests WHERE place_id = $1`, [placeId]);
         const data = result.rows.map(mapSpeedRow);
         // 30d stats

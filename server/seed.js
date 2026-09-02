@@ -21,17 +21,28 @@ const pool = new Pool({
 });
 
 async function seedUsersTable(client) {
+  // backfill pre-existing contributor emails into users table (idempotent)
+  await client.query(`
+    INSERT INTO users (name, email, role)
+    SELECT DISTINCT
+      TRIM(COALESCE(p.submitter_name, p.submitter_email, 'Guest')),
+      p.submitter_email,
+      'member'
+    FROM places p
+    WHERE p.submitter_email IS NOT NULL
+      AND NOT EXISTS (SELECT 1 FROM users WHERE users.email = p.submitter_email)
+  `).catch(() => {});
   for (const user of seedUsers) {
     await client.query(
       `
-        INSERT INTO users (id, name, email, role, created_at)
-        VALUES ($1, $2, $3, $4, NOW())
+        INSERT INTO users (id, name, email, role, is_trusted, created_at)
+        VALUES ($1, $2, $3, $4, $5, NOW())
         ON CONFLICT (email) DO UPDATE
         SET
           name = EXCLUDED.name,
           role = EXCLUDED.role
       `,
-      [user.id, user.name, user.email, user.role],
+      [user.id, user.name, user.email, user.role, user.is_trusted],
     );
   }
 }

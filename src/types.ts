@@ -13,6 +13,8 @@ export interface WifiCredential {
   rating_count: number;
   created_at: string;
   updated_at: string;
+  submitted_by_role?: 'admin' | 'member';
+  submitted_by_is_trusted?: boolean;
   ratings?: WifiRating[];
 }
 
@@ -24,6 +26,8 @@ export interface WifiRating {
   rating: number;
   comment: string | null;
   created_at: string;
+  rater_role?: 'admin' | 'member';
+  rater_is_trusted?: boolean;
 }
 
 export interface SpeedTestData {
@@ -37,10 +41,12 @@ export interface SpeedTestData {
   packet_loss?: number | null;
   duration_ms?: number | null;
   raw_summary?: any;
-  tested_by_name: string;
-  tested_by_email: string;
-  created_at: string;
-}
+   tested_by_name: string;
+   tested_by_email: string;
+   created_at: string;
+   tested_by_role?: 'admin' | 'member';
+   tested_by_is_trusted?: boolean;
+ }
 
 export interface SpeedStats {
   count: number; // 30d count
@@ -79,9 +85,11 @@ export interface PlaceData {
   operating_hours: string | null;
   image_tone: string;
   image_url: string | null;
-  submitter_name: string | null;
-  submitter_email: string | null;
-  status: 'approved' | 'pending' | 'rejected';
+   submitter_name: string | null;
+   submitter_email: string | null;
+   submitter_role?: 'admin' | 'member';
+   submitter_is_trusted?: boolean;
+   status: 'approved' | 'pending' | 'rejected';
   created_at: string;
   updated_at: string;
   // Computed fields from metrics
@@ -106,14 +114,18 @@ export interface ReviewData {
   rating_speed: number;
   rating_comfort: number;
   image_url: string | null;
-  comment: string;
-  created_at: string;
-}
+   comment: string;
+   created_at: string;
+   author_role?: 'admin' | 'member';
+   author_is_trusted?: boolean;
+ }
 
 export interface RelatedPlace {
   id: number;
   name: string;
   wifi_speed_mbps: number | null;
+  submitter_role?: 'admin' | 'member';
+  submitter_is_trusted?: boolean;
 }
 
 export interface PlacesResponse {
@@ -206,4 +218,6 @@ export interface GoogleUser {
   email: string;
   picture?: string;
   credential?: string;
+  role: 'admin' | 'member';
+  isTrusted: boolean;
 }

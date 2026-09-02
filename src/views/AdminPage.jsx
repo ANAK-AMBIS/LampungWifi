@@ -1,7 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getAdminSubmissions, updateSubmissionStatus, getAdminWifi, updateWifiStatus } from "../api";
+import {
+  getAdminSubmissions,
+  updateSubmissionStatus,
+  getAdminWifi,
+  updateWifiStatus,
+  getAdminUsers,
+  updateUser,
+} from "../api";
 import { localizeLabel } from "../lib/constants";
 import { formatDate, formatMbps } from "../lib/format";
 import {
@@ -11,6 +18,7 @@ import {
   SectionHeader,
   StatusPill,
 } from "../components/ui";
+import { UserBadge } from "../components/UserBadge";
 import { localizeStatus } from "../lib/pageLabels";
 
 export function AdminPage() {
@@ -26,6 +34,8 @@ export function AdminPage() {
   const [wifiQueue, setWifiQueue] = useState([]);
   const [busyId, setBusyId] = useState(null);
   const [busyWifiId, setBusyWifiId] = useState(null);
+  const [users, setUsers] = useState(null);
+  const [busyUserId, setBusyUserId] = useState(null);
 
   useEffect(() => {
     let active = true;
@@ -33,9 +43,10 @@ export function AdminPage() {
     async function loadQueue() {
       try {
         setState((current) => ({ ...current, loading: true, error: "" }));
-        const [response, wifiRes] = await Promise.all([
+        const [response, wifiRes, usersRes] = await Promise.all([
           getAdminSubmissions(),
           getAdminWifi().catch(() => ({ data: [] })),
+          getAdminUsers().catch(() => ({ data: [] })),
         ]);
 
         if (!active) {
@@ -50,6 +61,7 @@ export function AdminPage() {
           submissions: response.data.submissions,
         });
         setWifiQueue(Array.isArray(wifiRes.data) ? wifiRes.data : wifiRes.data || []);
+        setUsers(Array.isArray(usersRes.data) ? usersRes.data : []);
       } catch (error) {
         if (!active) {
           return;
@@ -134,6 +146,20 @@ export function AdminPage() {
     }
   }
 
+  async function saveUserRole(userId, patch) {
+    setBusyUserId(userId);
+    try {
+      await updateUser(userId, patch);
+      setUsers((current) =>
+        current.map((u) => (u.id === userId ? { ...u, ...patch } : u)),
+      );
+    } catch (error) {
+      setState((current) => ({ ...current, error: error.message }));
+    } finally {
+      setBusyUserId(null);
+    }
+  }
+
   return (
     <main className="page">
       <section className="section">
@@ -195,7 +221,14 @@ export function AdminPage() {
                 <article key={c.id} className="submission-card">
                   <div className="submission-card__copy">
                     <div className="submission-card__head"><div><h3>{c.ssid} <StatusPill tone="info">{c.band}</StatusPill></h3><p>Place #{c.place_id} — {c.password || "Open"}</p></div><StatusPill tone="warning">{localizeStatus(c.status)}</StatusPill></div>
-                    <div className="submission-card__meta"><StatusPill tone="muted">{c.submitted_by_name}</StatusPill><StatusPill tone="muted">{c.submitted_by_email}</StatusPill><StatusPill tone="muted">{localizeLabel(c.password_source) || "tanpa sumber"}</StatusPill></div>
+                    <div className="submission-card__meta">
+                      <StatusPill tone="muted">
+                        {c.submitted_by_name}
+                        <UserBadge role={c.submitted_by_role} isTrusted={c.submitted_by_is_trusted} />
+                      </StatusPill>
+                      <StatusPill tone="muted">{c.submitted_by_email}</StatusPill>
+                      <StatusPill tone="muted">{localizeLabel(c.password_source) || "tanpa sumber"}</StatusPill>
+                    </div>
                     <small>Dibuat {formatDate(c.created_at)}</small>
                   </div>
                   <div className="submission-card__actions">
@@ -230,6 +263,7 @@ export function AdminPage() {
                       <StatusPill tone="muted">
                         {submission.submitter_name ||
                           "Pengirim tidak diketahui"}
+                        <UserBadge role={submission.submitter_role} isTrusted={submission.submitter_is_trusted} />
                       </StatusPill>
                       <StatusPill tone="info">
                         {submission.wifi_speed_mbps
@@ -271,6 +305,94 @@ export function AdminPage() {
               ))}
             </div>
           </>
+        )}
+      </section>
+
+      <section className="admin-queue" style={{ marginTop: 24 }}>
+        <SectionHeader
+          title="Pengguna"
+          description="Kelola role & status terpercaya member. Admin tidak memerlukan flag trusted."
+        />
+        {users === null ? (
+          <LoadingGrid />
+        ) : users.length === 0 ? (
+          <p style={{ color: "#6b7280" }}>Belum ada pengguna terdaftar.</p>
+        ) : (
+          <div className="users-table-wrap">
+            <table className="users-table">
+              <thead>
+                <tr>
+                  <th>Nama</th>
+                  <th>Email</th>
+                  <th>Role</th>
+                  <th>Trusted</th>
+                  <th>Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                {users.map((u) => {
+                  const isAdmin = u.role === "admin";
+                  return (
+                    <tr key={u.id}>
+                      <td>
+                        {u.name}
+                        <UserBadge role={u.role} isTrusted={u.is_trusted} />
+                      </td>
+                      <td>{u.email}</td>
+                      <td>
+                        <select
+                          value={u.role}
+                          disabled={busyUserId === u.id}
+                          onChange={(e) =>
+                            saveUserRole(u.id, {
+                              role: e.target.value,
+                              isTrusted:
+                                e.target.value === "admin" ? false : u.is_trusted,
+                            })
+                          }
+                        >
+                          <option value="member">member</option>
+                          <option value="admin">admin</option>
+                        </select>
+                      </td>
+                      <td>
+                        <label className="checkbox-field">
+                          <input
+                            type="checkbox"
+                            checked={Boolean(u.is_trusted)}
+                            disabled={busyUserId === u.id || isAdmin}
+                            onChange={(e) =>
+                              saveUserRole(u.id, { isTrusted: e.target.checked })
+                            }
+                          />
+                          <span>
+                            {isAdmin
+                              ? "Admin tidak perlu trusted"
+                              : "Centang biru ditampilkan"}
+                          </span>
+                        </label>
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          className="button button--small"
+                          disabled={busyUserId === u.id}
+                          onClick={() =>
+                            saveUserRole(u.id, {
+                              role: isAdmin ? "member" : "admin",
+                              isTrusted: false,
+                            })
+                          }
+                        >
+                          Jadikan {isAdmin ? "member" : "admin"}
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </section>
     </main>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import "leaflet/dist/leaflet.css";
+// import "leaflet/dist/leaflet.css"; // handled globally
 
 const NOMINATIM = "https://nominatim.openstreetmap.org";
 

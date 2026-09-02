@@ -4,10 +4,29 @@ export const seedUsers = [
     name: "Admin BalamWiFi",
     email: "admin@balamwifi.id",
     role: "admin",
+    is_trusted: false,
   },
-  { id: 2, name: "Rina Lestari", email: "rina@example.com", role: "member" },
-  { id: 3, name: "Adi Darmawan", email: "adi@example.com", role: "member" },
-  { id: 4, name: "Rizky Ramadhan", email: "rizky@example.com", role: "member" },
+  {
+    id: 2,
+    name: "Rina Lestari",
+    email: "rina@example.com",
+    role: "member",
+    is_trusted: true,
+  },
+  {
+    id: 3,
+    name: "Adi Darmawan",
+    email: "adi@example.com",
+    role: "member",
+    is_trusted: false,
+  },
+  {
+    id: 4,
+    name: "Rizky Ramadhan",
+    email: "rizky@example.com",
+    role: "member",
+    is_trusted: false,
+  },
 ];
 
 export const seedPlaces = [

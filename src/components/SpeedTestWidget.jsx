@@ -7,6 +7,7 @@ import { formatDate, formatMbps } from "../lib/format";
 import { haversineMeters, formatDistance, getCurrentPosition } from "../lib/geo";
 import { InfoBanner, SectionHeader, StatusPill, MetricTile } from "./ui";
 import { LoginGate } from "./LoginGate";
+import { UserBadge } from "./UserBadge";
 
 // kuota ringkas ~35-45MB, tanpa packetLoss & tanpa 100MB+ chunks
 const COMPACT_MEASUREMENTS = [
@@ -437,7 +438,11 @@ export function SpeedTestWidget({ place, placeId: placeIdProp, initialStats, ini
                   <div>
                     <strong>{formatMbps(t.download_mbps)} ↓</strong> <span style={{ color: "#6b7280" }}>/ {t.upload_mbps != null ? `${formatMbps(t.upload_mbps)} ↑` : "—"}</span> <StatusPill tone="muted">{t.ping_ms != null ? `${t.ping_ms} ms` : "—"}</StatusPill> {t.jitter_ms != null ? <StatusPill tone="muted">±{Number(t.jitter_ms).toFixed(1)} ms</StatusPill> : null}
                     {t.claimed_ssid ? <StatusPill tone="info">{t.claimed_ssid}</StatusPill> : null} {t.distance_m != null ? <StatusPill tone="muted">{formatDistance(t.distance_m)}</StatusPill> : null}
-                    <div style={{ fontSize: 12, color: "#6b7280" }}>{t.tested_by_name} • {formatDate(t.created_at)} {t.duration_ms ? `• ${Math.round(t.duration_ms / 1000)}s` : ""}</div>
+                    <div style={{ fontSize: 12, color: "#6b7280" }}>
+                      {t.tested_by_name}
+                      <UserBadge role={t.tested_by_role} isTrusted={t.tested_by_is_trusted} />
+                      {" • "}{formatDate(t.created_at)} {t.duration_ms ? `• ${Math.round(t.duration_ms / 1000)}s` : ""}
+                    </div>
                   </div>
                   <small style={{ color: "#9ca3af" }}>#{t.id}</small>
                 </div>

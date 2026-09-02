@@ -1787,6 +1787,31 @@
     border-color: #fecaca;
 }
 
+.user-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    width: fit-content;
+    font-size: 0.76rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.user-badge--trusted {
+    color: #1D9BF0;
+}
+
+.user-badge--admin {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    color: #1e3a8a;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+}
+
 .field input,
 .field select,
 .field textarea,
@@ -2789,6 +2814,42 @@
     gap: 4px;
     color: #8a8476;
     font-size: 0.76rem;
+}
+
+.users-table-wrap {
+    overflow-x: auto;
+}
+
+.users-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.users-table th,
+.users-table td {
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border-color);
+    vertical-align: middle;
+}
+
+.users-table th {
+    color: var(--text-secondary);
+    font-weight: 700;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.users-table select {
+    min-width: 110px;
+}
+
+.users-table button {
+    min-height: 36px;
+    padding-inline: 10px;
+    font-size: 0.82rem;
 }
 
 /* Hugeicons Icon Font helpers */
