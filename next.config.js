@@ -7,6 +7,10 @@ const imageHosts = (process.env.NEXT_IMAGE_REMOTE_HOSTS ?? defaultImageHosts.joi
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   compress: true,
+  serverExternalPackages: ["pg"],
+  outputFileTracingExcludes: {
+    "*": ["node_modules/pg/**", "node_modules/pg/**/*", "**/pg/**"],
+  },
   images: {
     remotePatterns: imageHosts.map((hostname) => ({
       protocol: 'https',

@@ -7,7 +7,7 @@ import { defineConfig, globalIgnores } from 'eslint/config'
 // Keep lint for JS/JSX only until upstream supports TS 7. TS files are type-checked via `tsc --noEmit` / `next build`.
 // When TS 7 support lands, re-enable: import tseslint from 'typescript-eslint' and add **/*.{ts,tsx} override with ...tseslint.configs.recommended
 export default defineConfig([
-  globalIgnores(['.next', 'dist', 'out', 'coverage']),
+  globalIgnores(['.next', 'dist', 'out', 'coverage', '.open-next', '.wrangler', 'worker']),
   {
     files: ['**/*.{js,jsx}'],
     extends: [

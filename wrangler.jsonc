@@ -1,0 +1,44 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "balamwifi",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-09-02",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "balamwifi-prod",
+      "database_id": "03cfcf37-22b7-4a00-b3ae-51115c7e9675",
+      "preview_database_id": "local-balamwifi-prod"
+    }
+  ],
+  "vars": {
+    "NEXT_PUBLIC_API_BASE": "/api",
+    "NEXT_PUBLIC_GOOGLE_CLIENT_ID": "858279804864-kq43s279u3fdui3romc2icossutq0q54.apps.googleusercontent.com",
+    "NEXT_PUBLIC_SITE_URL": "https://balamwifi.my.id",
+    "NEXT_IMAGE_REMOTE_HOSTS": "i.ibb.co,images.unsplash.com,lh3.googleusercontent.com",
+    "SPEEDTEST_MAX_DISTANCE_M": "150",
+    "NEXT_PUBLIC_SPEEDTEST_MAX_DISTANCE_M": "150",
+    "CORS_ORIGIN": "https://balamwifi.my.id,https://www.balamwifi.my.id,https://balamwifi.nodryx.workers.dev,http://localhost:3000",
+    "DB_SCHEMA_SYNC": "true"
+  },
+  "observability": {
+    "enabled": true
+  },
+  "workers_dev": true,
+  "preview_urls": true,
+  "routes": [
+    {
+      "pattern": "balamwifi.my.id",
+      "custom_domain": true
+    },
+    {
+      "pattern": "www.balamwifi.my.id",
+      "custom_domain": true
+    }
+  ]
+}
