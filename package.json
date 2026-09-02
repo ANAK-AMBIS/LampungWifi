@@ -16,7 +16,7 @@
     "dev:worker": "opennextjs-cloudflare dev",
     "dev:d1": "wrangler d1 execute balamwifi-prod --local --command=\"SELECT COUNT(*) FROM places\"",
     "postinstall": "node scripts/patch-opennext.js || true",
-    "build": "opennextjs-cloudflare build",
+    "build": "next build",
     "build:next": "next build",
     "build:worker": "opennextjs-cloudflare build",
     "preview:worker": "opennextjs-cloudflare preview",

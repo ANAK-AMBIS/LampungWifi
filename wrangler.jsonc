@@ -29,6 +29,9 @@
   "observability": {
     "enabled": true
   },
+  "build": {
+    "command": "npm run build:worker"
+  },
   "workers_dev": true,
   "preview_urls": true,
   "routes": [
