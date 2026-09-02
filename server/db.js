@@ -1,10 +1,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import pg from "pg";
 import { seedPlaces, seedReviews, seedUsers } from "./seedData.js";
-
-const { Pool } = pg;
 
 const searchableFields = ["name", "address", "district", "category"];
 
@@ -866,7 +863,9 @@ const placeListColumns = `
   u_sub.is_trusted AS submitter_is_trusted
 `;
 
-function createPostgresStore() {
+async function createPostgresStore() {
+  const { default: pg } = await import("pg");
+  const { Pool } = pg;
   const connectionString = process.env.DATABASE_URL;
   const requiresSsl = !/(localhost|127\.0\.0\.1)/i.test(connectionString);
   const __filename = fileURLToPath(import.meta.url);
@@ -1563,7 +1562,19 @@ function createPostgresStore() {
   };
 }
 
-export async function createStore() {
+export async function createStore(env) {
+  // D1 binding takes precedence (Cloudflare Workers)
+  const d1Binding = env?.DB ?? globalThis.DB;
+  if (d1Binding) {
+    try {
+      const { createD1Store } = await import("./d1.js");
+      const d1Store = createD1Store(d1Binding);
+      await d1Store.initialize();
+      return d1Store;
+    } catch (e) {
+      console.error("[db] d1 failed, fallback:", e.message);
+    }
+  }
   if (!process.env.DATABASE_URL) {
     const m = createMemoryStore();
     await m.initialize();
@@ -1576,7 +1587,7 @@ export async function createStore() {
     return m;
   }
   try {
-    const pgStore = createPostgresStore();
+    const pgStore = await createPostgresStore();
     await pgStore.initialize();
     return pgStore;
   } catch (e) {
