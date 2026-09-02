@@ -13,6 +13,9 @@ dist-ssr
 .next
 out
 coverage
+.open-next
+.wrangler
+.dev.vars
 .env
 .env.*
 !.env.example
