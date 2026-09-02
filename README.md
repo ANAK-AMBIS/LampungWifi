@@ -5,8 +5,9 @@ BalamWiFi is a public WiFi directory for Bandar Lampung. It lists cafes, librari
 ## Stack
 
 - Next.js 16 + React 19 frontend
-- Express API server
-- PostgreSQL via `pg`
+- **Cloudflare Workers + D1 (SQLite)** via `@opennextjs/cloudflare` (monolitik, `wrangler.jsonc:1`, `server/schema.d1.sql:1`, `server/d1.js:1`) — production target `https://balamwifi.my.id` (vars `CORS_ORIGIN`, `NEXT_PUBLIC_SITE_URL`)
+- Express API server (legacy local dev `npm run dev:legacy`, `server/index.js:64`) + Hono Worker API `worker/index.ts:1` (keep `nodejs_compat`, D1 `env.DB`)
+- PostgreSQL via `pg` (legacy, `server/db.js:866` dynamic import, optional `DATABASE_URL`)
 - Zod request validation
 - In-memory seed data fallback when `DATABASE_URL` is not set
 - Google ID token verification for community submissions and reviews
@@ -120,15 +121,46 @@ npm run db:seed
 - Do not deploy admin moderation without `ADMIN_TOKEN`.
 - Set `CORS_ORIGIN` in production. Without it, production denies browser origins by default.
 
-## Deploy
+## Deploy (Cloudflare Workers + D1 — Opsi A Monolitik)
 
-1. Set environment variables on hosting provider.
-2. Run `npm install`.
-3. Run `npm run build`.
-4. Start with `npm run start` to run both the Express API and the built Next app.
-5. Seed database if needed with `npm run db:seed`.
+Domain prod: `https://balamwifi.my.id` (`wrangler.jsonc:18` vars, `CORS_ORIGIN=https://balamwifi.my.id,https://www.balamwifi.my.id`).
 
-For Neon PostgreSQL, use pooled connection string in `DATABASE_URL`.
+### Lokal D1
+
+```bash
+npm install
+cp .env.example .env          # isi ADMIN_TOKEN, GOOGLE_CLIENT_ID/SECRET
+# .dev.vars otomatis copy dari .env (untuk wrangler dev local)
+npm run d1:schema:local       # wrangler d1 execute --local --file=./server/schema.d1.sql
+npm run d1:seed:local         # seed 9 places/8 reviews -> D1 local
+npm run dev:worker            # opennextjs-cloudflare dev (Workers + D1 local, http://localhost:8787)
+# atau legacy: npm run dev:legacy  (Express 8787 + Next 3000, pakai pg/DATABASE_URL)
+```
+
+- `app/api/[...path]/route.js:27` proxy otomatis pakai D1 langsung di Workers (`getCloudflareContext` -> `createStore(env.DB)`) dan fallback ke `API_SERVER_URL=http://localhost:8787` untuk `npm run dev:legacy`.
+- Hono API standalone `worker/index.ts:1` (keep `nodejs_compat`) untuk tes D1 langsung tanpa Next.
+
+### Produksi
+
+```bash
+npx wrangler d1 create balamwifi-prod --location apac   # catat database_id -> update wrangler.jsonc
+npx wrangler secret put ADMIN_TOKEN
+npx wrangler secret put SESSION_SECRET
+npx wrangler secret put GOOGLE_CLIENT_ID
+npx wrangler secret put GOOGLE_CLIENT_SECRET
+# NEXT_PUBLIC_* di wrangler.jsonc vars
+npm run d1:schema:remote
+npm run d1:seed:remote    # optional, first deploy
+npm run build:worker      # opennextjs-cloudflare build (patched symlink junction for Windows)
+npm run deploy            # opennextjs-cloudflare deploy -> https://balamwifi.my.id
+# Set custom domain di Cloudflare Dashboard: Workers -> balamwifi -> Custom Domain -> balamwifi.my.id
+```
+
+Update Google Cloud Console: Authorized redirect `https://balamwifi.my.id/api/auth/google/callback`.
+
+### Legacy (Neon Postgres)
+
+For Neon PostgreSQL, use pooled connection string in `DATABASE_URL` + `npm run dev:legacy` / `npm run db:seed`.
 
 ## Panduan Kerjasama (Branch & Kolaborasi)
 
