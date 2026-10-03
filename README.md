@@ -1,24 +1,44 @@
 # BalamWiFi
 
-BalamWiFi is a public WiFi directory for Bandar Lampung. It lists cafes, libraries, campus lounges, coworking spaces, restaurants, and rest areas with public WiFi details, speed reports, power outlet info, reviews, and moderation flow.
+BalamWiFi is a public WiFi directory for Bandar Lampung. It lists cafes, libraries, campus lounges, coworking spaces, restaurants, and rest areas with public WiFi details, speed reports, power outlet info, reviews, and a moderation flow.
 
-## Stack
+Production: <https://balamwifi.my.id>
 
-- Next.js 16 + React 19 frontend
-- **Cloudflare Workers + D1 (SQLite)** via `@opennextjs/cloudflare` (monolitik, `wrangler.jsonc:1`, `server/schema.d1.sql:1`, `server/d1.js:1`) — production target `https://balamwifi.my.id` (vars `CORS_ORIGIN`, `NEXT_PUBLIC_SITE_URL`)
-- Express API server (legacy local dev `npm run dev:legacy`, `server/index.js:64`) + Hono Worker API `worker/index.ts:1` (keep `nodejs_compat`, D1 `env.DB`)
-- PostgreSQL via `pg` (legacy, `server/db.js:866` dynamic import, optional `DATABASE_URL`)
-- Zod request validation
-- In-memory seed data fallback when `DATABASE_URL` is not set
-- Google ID token verification for community submissions and reviews
+## Table of Contents
+
+- [Tech Stack](#tech-stack)
+- [Requirements](#requirements)
+- [Quick Start](#quick-start)
+- [Environment Variables](#environment-variables)
+- [Scripts](#scripts)
+- [API](#api)
+- [Database](#database)
+- [Security Notes](#security-notes)
+- [Deploy](#deploy-cloudflare-workers--d1)
+- [Panduan Kerjasama](#panduan-kerjasama-branch--kolaborasi)
+
+## Tech Stack
+
+| Layer | Teknologi | Referensi |
+|---|---|---|
+| Frontend | Next.js 16 + React 19 | |
+| Production runtime | Cloudflare Workers + D1 (SQLite) via `@opennextjs/cloudflare` (monolitik) | `wrangler.jsonc:1`, `server/schema.d1.sql:1`, `server/d1.js:1` |
+| Worker API | Hono, standalone (keep `nodejs_compat`, D1 `env.DB`) | `worker/index.ts:1` |
+| Legacy API | Express, untuk local dev (`npm run dev:legacy`) | `server/index.js:64` |
+| Legacy database | PostgreSQL via `pg`, optional `DATABASE_URL` | `server/db.js:866` (dynamic import) |
+| Validation | Zod | |
+| Auth | Google ID token verification untuk community submissions dan reviews | |
+| Fallback | In-memory seed data bila `DATABASE_URL` tidak di-set | |
+
+Production vars: `CORS_ORIGIN`, `NEXT_PUBLIC_SITE_URL`.
 
 ## Requirements
 
 - Node.js 22 or newer
 - npm
-- PostgreSQL database for production or persistent local data
+- PostgreSQL database (hanya untuk mode legacy dengan data persisten)
 
-## Setup
+## Quick Start
 
 ```bash
 npm install
@@ -26,10 +46,14 @@ cp .env.example .env
 npm run dev
 ```
 
-Frontend runs on `http://localhost:3000`.
-API runs on `http://localhost:8787`.
+| Service | URL |
+|---|---|
+| Frontend | `http://localhost:3000` |
+| API | `http://localhost:8787` |
 
-## Environment
+Untuk menjalankan dengan Cloudflare Workers + D1 lokal, lihat [Lokal D1](#lokal-d1).
+
+## Environment Variables
 
 ```env
 PORT=8787
@@ -44,19 +68,17 @@ API_SERVER_URL=http://localhost:8787
 NEXT_IMAGE_REMOTE_HOSTS=i.ibb.co,images.unsplash.com,lh3.googleusercontent.com
 ```
 
-`DATABASE_URL` is optional for development. Without it, server uses seed data in memory.
+| Variable | Keterangan |
+|---|---|
+| `DATABASE_URL` | Optional untuk development. Tanpa ini, server memakai seed data di memori. |
+| `DB_SCHEMA_SYNC` | Set `false` di production setelah migrasi diterapkan, agar API server tidak menjalankan schema DDL dan metrics backfill di setiap startup. |
+| `ADMIN_TOKEN` | Melindungi endpoint moderasi. Di development, endpoint admin tetap terbuka jika kosong. Di production, kosong berarti akses admin dinonaktifkan dengan status `503`. |
+| `API_SERVER_URL` | Dipakai Next route handlers untuk mem-proxy request `/api/*` ke Express API server. |
+| `GOOGLE_CLIENT_ID` | Dipakai API untuk memverifikasi Google ID token. |
+| `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | Mengaktifkan prompt login di browser. Gunakan OAuth client ID yang sama kecuali memang sengaja dipisah. |
+| `NEXT_IMAGE_REMOTE_HOSTS` | Allowlist (dipisah koma) untuk optimasi remote `next/image`. Tambahkan host tepercaya sebelum menerima URL dari provider baru. |
 
-Set `DB_SCHEMA_SYNC=false` in production after migrations are applied if you do not want the API server to run schema DDL and metrics backfill on every startup.
-
-`ADMIN_TOKEN` protects moderation endpoints. In development, admin endpoints remain open if `ADMIN_TOKEN` is empty. In production, empty `ADMIN_TOKEN` disables admin access with `503`.
-
-`API_SERVER_URL` is used by Next route handlers to proxy `/api/*` requests to the Express API server.
-
-`GOOGLE_CLIENT_ID` is used by the API to verify Google ID tokens. `NEXT_PUBLIC_GOOGLE_CLIENT_ID` enables the browser login prompt. Use the same OAuth client ID unless you intentionally split clients.
-
-`NEXT_IMAGE_REMOTE_HOSTS` is a comma-separated allowlist for `next/image` remote optimization. Add trusted image hosts here before accepting URLs from a new provider.
-
-Use admin token with:
+Autentikasi admin memakai header:
 
 ```http
 Authorization: Bearer change-this-admin-token
@@ -64,48 +86,49 @@ Authorization: Bearer change-this-admin-token
 
 ## Scripts
 
-```bash
-npm run dev          # Run API and Next dev server
-npm run dev:client   # Run Next only
-npm run dev:api      # Run API only
-npm run dev:server   # Alias for dev:api
-npm run build        # Build Next app
-npm run preview      # Start built Next app and API
-npm run start        # Start built Next app and API
-npm run start:next   # Start built Next app only
-npm run start:api    # Start API only
-npm run db:seed      # Seed PostgreSQL data
-npm run lint         # Run ESLint
-```
+| Perintah | Fungsi |
+|---|---|
+| `npm run dev` | Jalankan API dan Next dev server |
+| `npm run dev:client` | Jalankan Next saja |
+| `npm run dev:api` | Jalankan API saja |
+| `npm run dev:server` | Alias untuk `dev:api` |
+| `npm run build` | Build Next app |
+| `npm run preview` | Start built Next app dan API |
+| `npm run start` | Start built Next app dan API |
+| `npm run start:next` | Start built Next app saja |
+| `npm run start:api` | Start API saja |
+| `npm run db:seed` | Seed data PostgreSQL |
+| `npm run lint` | Jalankan ESLint |
 
 ## API
 
-```http
-GET /api/health
-GET /api/places
-GET /api/places/:id
-POST /api/places
-POST /api/reviews
-GET /api/admin/submissions
-PATCH /api/admin/submissions/:id
-```
+| Method | Endpoint |
+|---|---|
+| `GET` | `/api/health` |
+| `GET` | `/api/places` |
+| `GET` | `/api/places/:id` |
+| `POST` | `/api/places` |
+| `POST` | `/api/reviews` |
+| `GET` | `/api/admin/submissions` |
+| `PATCH` | `/api/admin/submissions/:id` |
 
-Supported place filters:
+### Filter Places
 
-- `q`: text search by name, address, district, or category
-- `category`: exact category
-- `accessType`: exact WiFi access type
-- `speed`: `steady`, `fast`, or `ultra`
-- `outlets`: `true` or `false`
-- `open24`: `true` or `false`
-- `wifi`: `true` or `false`
-- `status`: `approved`, `pending`, `rejected`, or `all`
-- `limit`: 1-100, default 100
+| Parameter | Nilai |
+|---|---|
+| `q` | Pencarian teks berdasarkan nama, alamat, kecamatan, atau kategori |
+| `category` | Kategori (exact match) |
+| `accessType` | Tipe akses WiFi (exact match) |
+| `speed` | `steady`, `fast`, atau `ultra` |
+| `outlets` | `true` atau `false` |
+| `open24` | `true` atau `false` |
+| `wifi` | `true` atau `false` |
+| `status` | `approved`, `pending`, `rejected`, atau `all` |
+| `limit` | 1 sampai 100, default 100 |
 
 ## Database
 
-Schema lives in `server/schema.sql` and is applied when PostgreSQL store initializes.
-Place rating metrics are stored in `place_metrics` and updated incrementally for the changed place after review/submission writes.
+Schema ada di `server/schema.sql` dan diterapkan saat PostgreSQL store diinisialisasi. Metrik rating tempat disimpan di `place_metrics` dan diperbarui secara incremental untuk tempat yang berubah setelah penulisan review atau submission.
 
 Seed data:
 
@@ -115,52 +138,54 @@ npm run db:seed
 
 ## Security Notes
 
-- Only list public WiFi or owner-approved access.
-- Password entries require source proof before approval.
-- `POST /api/places` and `POST /api/reviews` require a valid Google ID token in `Authorization: Bearer <token>`.
-- Do not deploy admin moderation without `ADMIN_TOKEN`.
-- Set `CORS_ORIGIN` in production. Without it, production denies browser origins by default.
+- Hanya daftarkan WiFi publik atau akses yang disetujui pemiliknya.
+- Entri dengan password wajib menyertakan bukti sumber sebelum disetujui.
+- `POST /api/places` dan `POST /api/reviews` membutuhkan Google ID token valid di `Authorization: Bearer <token>`.
+- Jangan deploy moderasi admin tanpa `ADMIN_TOKEN`.
+- Set `CORS_ORIGIN` di production. Tanpa ini, production menolak semua browser origin secara default.
 
-## Deploy (Cloudflare Workers + D1 — Opsi A Monolitik)
+## Deploy (Cloudflare Workers + D1)
 
-Domain prod: `https://balamwifi.my.id` (`wrangler.jsonc:18` vars, `CORS_ORIGIN=https://balamwifi.my.id,https://www.balamwifi.my.id`).
+Opsi A, monolitik. Domain production: `https://balamwifi.my.id` (vars di `wrangler.jsonc:18`, `CORS_ORIGIN=https://balamwifi.my.id,https://www.balamwifi.my.id`).
 
 ### Lokal D1
 
 ```bash
 npm install
 cp .env.example .env          # isi ADMIN_TOKEN, GOOGLE_CLIENT_ID/SECRET
-# .dev.vars otomatis copy dari .env (untuk wrangler dev local)
+# .dev.vars otomatis di-copy dari .env (untuk wrangler dev lokal)
 npm run d1:schema:local       # wrangler d1 execute --local --file=./server/schema.d1.sql
-npm run d1:seed:local         # seed 9 places/8 reviews -> D1 local
-npm run dev:worker            # opennextjs-cloudflare dev (Workers + D1 local, http://localhost:8787)
+npm run d1:seed:local         # seed 9 places / 8 reviews ke D1 lokal
+npm run dev:worker            # opennextjs-cloudflare dev (Workers + D1 lokal, http://localhost:8787)
 # atau legacy: npm run dev:legacy  (Express 8787 + Next 3000, pakai pg/DATABASE_URL)
 ```
 
-- `app/api/[...path]/route.js:27` proxy otomatis pakai D1 langsung di Workers (`getCloudflareContext` -> `createStore(env.DB)`) dan fallback ke `API_SERVER_URL=http://localhost:8787` untuk `npm run dev:legacy`.
-- Hono API standalone `worker/index.ts:1` (keep `nodejs_compat`) untuk tes D1 langsung tanpa Next.
+- Proxy di `app/api/[...path]/route.js:27` otomatis memakai D1 langsung di Workers (`getCloudflareContext` lalu `createStore(env.DB)`), dan fallback ke `API_SERVER_URL=http://localhost:8787` untuk `npm run dev:legacy`.
+- Hono API standalone di `worker/index.ts:1` (keep `nodejs_compat`) berguna untuk tes D1 langsung tanpa Next.
 
 ### Produksi
 
 ```bash
-npx wrangler d1 create balamwifi-prod --location apac   # catat database_id -> update wrangler.jsonc
+npx wrangler d1 create balamwifi-prod --location apac   # catat database_id, update wrangler.jsonc
 npx wrangler secret put ADMIN_TOKEN
 npx wrangler secret put SESSION_SECRET
 npx wrangler secret put GOOGLE_CLIENT_ID
 npx wrangler secret put GOOGLE_CLIENT_SECRET
-# NEXT_PUBLIC_* di wrangler.jsonc vars
+# NEXT_PUBLIC_* diisi di wrangler.jsonc vars
 npm run d1:schema:remote
-npm run d1:seed:remote    # optional, first deploy
-npm run build:worker      # opennextjs-cloudflare build (patched symlink junction for Windows)
-npm run deploy            # opennextjs-cloudflare deploy -> https://balamwifi.my.id
-# Set custom domain di Cloudflare Dashboard: Workers -> balamwifi -> Custom Domain -> balamwifi.my.id
+npm run d1:seed:remote    # optional, untuk first deploy
+npm run build:worker      # opennextjs-cloudflare build (patched symlink junction untuk Windows)
+npm run deploy            # opennextjs-cloudflare deploy ke https://balamwifi.my.id
 ```
 
-Update Google Cloud Console: Authorized redirect `https://balamwifi.my.id/api/auth/google/callback`.
+Setelah deploy:
+
+1. Set custom domain di Cloudflare Dashboard: **Workers → balamwifi → Custom Domain → `balamwifi.my.id`**.
+2. Update Google Cloud Console dengan Authorized redirect: `https://balamwifi.my.id/api/auth/google/callback`.
 
 ### Legacy (Neon Postgres)
 
-For Neon PostgreSQL, use pooled connection string in `DATABASE_URL` + `npm run dev:legacy` / `npm run db:seed`.
+Untuk Neon PostgreSQL, gunakan pooled connection string di `DATABASE_URL`, lalu jalankan `npm run dev:legacy` dan `npm run db:seed`.
 
 ## Panduan Kerjasama (Branch & Kolaborasi)
 
@@ -172,21 +197,23 @@ Panduan ini wajib diikuti semua kontributor agar riwayat git tetap rapi dan revi
 <type>/<nama>/<pekerjaan>
 ```
 
-| Bagian       | Aturan                                                                 | Contoh                  |
-| ------------ | ---------------------------------------------------------------------- | ----------------------- |
-| `<type>`     | Jenis pekerjaan. Pilih salah satu di bawah                             | `feat`, `fix`, `chore`  |
-| `<nama>`     | Nama panggilan / username GitHub, huruf kecil, tanpa spasi, kebab-case | `jeremi`, `budi`        |
-| `<pekerjaan>`| Deskripsi singkat pekerjaan, kebab-case, 2–4 kata, tanpa spasi         | `filter-kategori`, `perbaiki-proxy-api` |
+| Bagian | Aturan | Contoh |
+|---|---|---|
+| `<type>` | Jenis pekerjaan, pilih dari daftar di bawah | `feat`, `fix`, `chore` |
+| `<nama>` | Nama panggilan atau username GitHub, huruf kecil, tanpa spasi, kebab-case | `jeremi`, `budi` |
+| `<pekerjaan>` | Deskripsi singkat, kebab-case, 2 sampai 4 kata, tanpa spasi | `filter-kategori`, `perbaiki-proxy-api` |
 
 **Daftar `<type>` yang diizinkan:**
 
-- `feat` / `feature` — fitur baru
-- `fix` — perbaikan bug
-- `chore` — tooling, deps, config, build
-- `docs` — dokumentasi
-- `refactor` — refactor tanpa ubah behavior
-- `style` — styling/UI saja
-- `test` — tambah/perbaiki test
+| Type | Kegunaan |
+|---|---|
+| `feat` / `feature` | Fitur baru |
+| `fix` | Perbaikan bug |
+| `chore` | Tooling, deps, config, build |
+| `docs` | Dokumentasi |
+| `refactor` | Refactor tanpa mengubah behavior |
+| `style` | Styling/UI saja |
+| `test` | Tambah atau perbaiki test |
 
 **Contoh benar:**
 
@@ -202,7 +229,7 @@ refactor/budi/optimasi-query
 **Contoh salah:**
 
 ```
-Feat/Jeremi/Filter Kategori   # jangan pakai huruf besar & spasi
+Feat/Jeremi/Filter Kategori   # jangan pakai huruf besar dan spasi
 feature-jeremi-filter         # harus pakai slash /
 feat/jeremi/                  # pekerjaan tidak boleh kosong
 ```
@@ -223,23 +250,25 @@ git commit -m "feat: tambah filter kategori wifi"
 
 # 4. Push branch ke remote
 git push -u origin feat/jeremi/nama-pekerjaan
-
-# 5. Buka Pull Request (PR) di GitHub: base = main, compare = branch kamu
-# 6. Tunggu CI lolos (lint, test, build) dan minta 1 review
-# 7. Setelah di-approve -> Squash and merge -> hapus branch
 ```
+
+Lanjutkan di GitHub:
+
+1. Buka Pull Request: base = `main`, compare = branch kamu.
+2. Tunggu CI lolos (lint, test, build) dan minta 1 review.
+3. Setelah di-approve, gunakan **Squash and merge**, lalu hapus branch.
 
 **Aturan penting:**
 
 - Selalu branch dari `main` terbaru. Jangan branch dari branch orang lain tanpa koordinasi.
 - Satu branch = satu pekerjaan/fitur. Jangan campur banyak fitur dalam satu branch.
 - Jangan push langsung ke `main`. Semua perubahan wajib lewat PR.
-- Selalu `git pull --rebase origin main` jika `main` sudah maju saat kamu masih mengerjakan branch.
+- Jalankan `git pull --rebase origin main` jika `main` sudah maju saat kamu masih mengerjakan branch.
 - Hapus branch setelah PR di-merge (`git branch -d feat/jeremi/nama-pekerjaan`).
 
 ### 3. Aturan Commit & Pull Request
 
-**Commit message (disarankan Conventional Commits):**
+**Commit message** (disarankan Conventional Commits):
 
 ```
 feat: tambah filter kategori wifi
@@ -248,9 +277,9 @@ chore: update deps Next 16
 docs: tambah panduan kerjasama di README
 ```
 
-**Judul PR:** jelas dan pakai prefix yang sama, contoh `feat(jeremi): filter kategori wifi`
+**Judul PR:** jelas dan memakai prefix yang sama, contoh `feat(jeremi): filter kategori wifi`.
 
-**Deskripsi PR wajib isi:**
+**Deskripsi PR wajib berisi:**
 
 - Apa yang diubah (what)
 - Kenapa diubah (why)
@@ -274,5 +303,5 @@ docs: tambah panduan kerjasama di README
 
 ### 5. Penamaan Lain
 
-- Issue branch opsional: boleh tambah nomor issue di pekerjaan, contoh `feat/jeremi/12-filter-kategori` jika pakai GitHub Issues.
-- Hotfix urgent: `fix/nama/hotfix-nama-bug` lalu PR langsung dengan label `urgent`.
+- **Issue branch (opsional):** boleh menambahkan nomor issue di bagian pekerjaan jika memakai GitHub Issues, contoh `feat/jeremi/12-filter-kategori`.
+- **Hotfix urgent:** `fix/nama/hotfix-nama-bug`, lalu buka PR langsung dengan label `urgent`.
